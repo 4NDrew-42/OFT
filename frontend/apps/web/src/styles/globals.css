@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  --primary: 199 89% 58%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 24 89% 65%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 267 88% 70%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --ring: 200 98% 37%;
+  --card: 217 33% 17%;
+  --card-foreground: 210 40% 98%;
+  --radius: 0.85rem;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+}
+
+a {
+  @apply text-primary underline-offset-4 hover:underline;
+}
+
+::selection {
+  background: rgba(56, 189, 248, 0.25);
+  color: inherit;
+}
+
+[data-theme='dark'] {
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+}
+
+[data-theme='light'] {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+}
