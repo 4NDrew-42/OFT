@@ -342,7 +342,7 @@ export const OrionVectorSearch: React.FC<OrionVectorSearchProps> = ({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={placeholder}
-              className="w-full pl-12 pr-4 py-3 bg-transparent border-none outline-none text-lg"
+              className="w-full pl-12 pr-4 py-3 bg-transparent border-none outline-none text-lg text-gray-900 placeholder:text-gray-500 dark:text-gray-100"
               disabled={searchMode !== 'text'}
             />
 
