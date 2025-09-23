@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; }
+        input { padding: 8px; width: 300px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 AI Marketplace Frontend Debug</h1>
+    
+    <div class="debug-section">
+        <h2>Environment Variables</h2>
+        <div id="env-vars"></div>
+    </div>
+
+    <div class="debug-section">
+        <h2>API Connectivity Test</h2>
+        <button onclick="testLocalAPI()">Test Local API (localhost:4001)</button>
+        <button onclick="testTunnelAPI()">Test Tunnel API</button>
+        <div id="api-results"></div>
+    </div>
+
+    <div class="debug-section">
+        <h2>Search Test</h2>
+        <input type="text" id="search-input" placeholder="Enter search query (e.g., abstract)" value="abstract">
+        <button onclick="performSearch()">Search</button>
+        <div id="search-results"></div>
+    </div>
+
+    <div class="debug-section">
+        <h2>Console Logs</h2>
+        <div id="console-logs"></div>
+    </div>
+
+    <script>
+        // Environment variables (simulated - in real Next.js these would be process.env)
+        const ENV_VARS = {
+            NEXT_PUBLIC_API_URL: 'https://separately-load-hebrew-diesel.trycloudflare.com',
+            NEXT_PUBLIC_WS_URL: 'wss://spam-tourist-pros-wonder.trycloudflare.com',
+            NEXT_PUBLIC_ORION_API_URL: 'https://rick-dicke-dave-interfaces.trycloudflare.com',
+            NEXT_PUBLIC_VERCEL_ENV: 'production',
+            NEXT_PUBLIC_ORION_ANALYTICS_ENABLED: 'true'
+        };
+
+        // Display environment variables
+        document.getElementById('env-vars').innerHTML = `
+            <pre>${JSON.stringify(ENV_VARS, null, 2)}</pre>
+        `;
+
+        // Console logging override
+        const originalLog = console.log;
+        const originalError = console.error;
+        const logs = [];
+
+        console.log = function(...args) {
+            logs.push({type: 'log', message: args.join(' '), time: new Date().toISOString()});
+            updateConsoleLogs();
+            originalLog.apply(console, args);
+        };
+
+        console.error = function(...args) {
+            logs.push({type: 'error', message: args.join(' '), time: new Date().toISOString()});
+            updateConsoleLogs();
+            originalError.apply(console, args);
+        };
+
+        function updateConsoleLogs() {
+            const logsDiv = document.getElementById('console-logs');
+            logsDiv.innerHTML = logs.slice(-10).map(log => 
+                `<div class="${log.type}"><small>${log.time}</small> ${log.message}</div>`
+            ).join('');
+        }
+
+        async function testLocalAPI() {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML = '<div class="info">Testing local API...</div>';
+            
+            try {
+                console.log('Testing local API: http://localhost:4001/health');
+                const response = await fetch('http://localhost:4001/health');
+                const data = await response.json();
+                
+                resultsDiv.innerHTML += `
+                    <div class="success">✅ Local API Success</div>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                console.log('Local API test successful:', data);
+            } catch (error) {
+                resultsDiv.innerHTML += `
+                    <div class="error">❌ Local API Failed: ${error.message}</div>
+                `;
+                console.error('Local API test failed:', error);
+            }
+        }
+
+        async function testTunnelAPI() {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML += '<div class="info">Testing tunnel API...</div>';
+            
+            try {
+                const tunnelUrl = ENV_VARS.NEXT_PUBLIC_API_URL;
+                console.log('Testing tunnel API:', tunnelUrl + '/health');
+                
+                const response = await fetch(tunnelUrl + '/health');
+                const data = await response.json();
+                
+                resultsDiv.innerHTML += `
+                    <div class="success">✅ Tunnel API Success</div>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                console.log('Tunnel API test successful:', data);
+            } catch (error) {
+                resultsDiv.innerHTML += `
+                    <div class="error">❌ Tunnel API Failed: ${error.message}</div>
+                `;
+                console.error('Tunnel API test failed:', error);
+            }
+        }
+
+        async function performSearch() {
+            const query = document.getElementById('search-input').value;
+            const resultsDiv = document.getElementById('search-results');
+            resultsDiv.innerHTML = '<div class="info">Searching...</div>';
+            
+            try {
+                const apiUrl = ENV_VARS.NEXT_PUBLIC_API_URL;
+                const searchUrl = `${apiUrl}/api/ai/search/vector`;
+                
+                console.log('Performing search:', {
+                    query,
+                    url: searchUrl
+                });
+                
+                const response = await fetch(searchUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        limit: 5,
+                        includeReasonings: true,
+                        enableRAG: true,
+                        semanticSearch: true
+                    })
+                });
+
+                console.log('Search response:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('Search data:', data);
+
+                if (data.success) {
+                    resultsDiv.innerHTML = `
+                        <div class="success">✅ Search Success (${data.results.length} results)</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="error">❌ Search Failed: ${data.error || 'Unknown error'}</div>
+                    `;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="error">❌ Search Error: ${error.message}</div>
+                `;
+                console.error('Search failed:', error);
+            }
+        }
+
+        // Auto-test on load
+        window.onload = function() {
+            console.log('Debug page loaded');
+            setTimeout(() => {
+                testLocalAPI();
+                setTimeout(() => {
+                    testTunnelAPI();
+                }, 2000);
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
