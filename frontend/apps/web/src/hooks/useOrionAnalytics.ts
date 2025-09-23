@@ -55,6 +55,17 @@ interface Insight {
   recommendations: string[];
 }
 
+// Simple per-session rate limiting and circuit breaker to prevent request floods
+let lastSendAt = 0;
+let failCount = 0;
+let suppressUntil = 0; // epoch ms
+let hasWarnedSuppressed = false;
+
+const MIN_INTERVAL_MS = 2000;      // minimum time between sends
+const BREAKER_FAILS = 3;           // failures before suppression
+const BREAKER_WINDOW_MS = 60000;   // 1 minute failure window (simplified)
+const SUPPRESS_MS = 10 * 60 * 1000; // 10 minutes suppression
+
 export const useOrionAnalytics = (enabled: boolean = ORION_ANALYTICS_ENABLED) => {
   const [isTracking, setIsTracking] = useState(false);
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).slice(2)}`);
@@ -102,6 +113,17 @@ export const useOrionAnalytics = (enabled: boolean = ORION_ANALYTICS_ENABLED) =>
   ): Promise<boolean> => {
     if (!enabled) return false;
 
+    // Global suppression (circuit breaker)
+    const now = Date.now();
+    if (suppressUntil && now < suppressUntil) {
+      return false;
+    }
+
+    // Simple client-side rate limiting to avoid flooding the network
+    if (now - lastSendAt < MIN_INTERVAL_MS) {
+      return false;
+    }
+
     setIsTracking(true);
 
     try {
@@ -140,6 +162,11 @@ export const useOrionAnalytics = (enabled: boolean = ORION_ANALYTICS_ENABLED) =>
 
       const result = await response.json();
 
+      // Success path: reset failure counters and update last send time
+      failCount = 0;
+      lastSendAt = Date.now();
+      hasWarnedSuppressed = false;
+
       // Update local analytics cache
       if (result.analytics) {
         setAnalytics(result.analytics);
@@ -148,7 +175,19 @@ export const useOrionAnalytics = (enabled: boolean = ORION_ANALYTICS_ENABLED) =>
       return true;
 
     } catch (error) {
-      console.error('ORION analytics tracking error:', error);
+      // Failure path: increment fails and possibly enable suppression
+      failCount += 1;
+      if (failCount >= BREAKER_FAILS) {
+        suppressUntil = Date.now() + SUPPRESS_MS;
+        if (!hasWarnedSuppressed) {
+          console.warn('ORION analytics suppressed for stability (temporary). Backend unavailable or rate-limited.');
+          hasWarnedSuppressed = true;
+        }
+      }
+      // Do not spam the console with every error
+      if (failCount === 1) {
+        console.info('ORION analytics first failure recorded; further failures temporarily suppressed in logs.');
+      }
       return false;
 
     } finally {
