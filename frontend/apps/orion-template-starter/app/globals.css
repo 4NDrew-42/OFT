@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  background-color: #020617;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: theme('fontFamily.body');
+  background: radial-gradient(circle at top left, rgba(99,102,241,0.25), transparent 55%),
+              radial-gradient(circle at bottom right, rgba(139,92,246,0.18), transparent 50%),
+              #020617;
+  color: #e2e8f0;
+}
+
+main {
+  min-height: 100vh;
+}
+
+.glass-panel {
+  background: rgba(15,23,42,0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(99,102,241,0.25);
+  border-radius: 24px;
+  box-shadow: 0 10px 40px rgba(15,23,42,0.35);
+}
+
+.grid-auto-fit {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.text-glow {
+  text-shadow: 0 2px 12px rgba(165, 180, 252, 0.45);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.6rem 1.4rem;
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.35);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(99, 102, 241, 0.45);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 9999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  border: 1px solid rgba(165, 180, 252, 0.45);
+  background: rgba(15,23,42,0.75);
+}

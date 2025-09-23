@@ -6,7 +6,16 @@
 
 import { useState, useCallback, useEffect } from 'react';
 
-import { API_BASE_URL } from '@/lib/env';
+import { API_BASE_URL, ORION_ANALYTICS_ENABLED } from '@/lib/env';
+
+let hasLoggedMissingAnalyticsEndpoint = false;
+
+const logMissingAnalyticsEndpoint = (context: string) => {
+  if (!hasLoggedMissingAnalyticsEndpoint) {
+    console.info(`ORION analytics endpoint unavailable (404) – ${context}`);
+    hasLoggedMissingAnalyticsEndpoint = true;
+  }
+};
 
 interface UserInteraction {
   id: string;
@@ -46,7 +55,7 @@ interface Insight {
   recommendations: string[];
 }
 
-export const useOrionAnalytics = (enabled: boolean = true) => {
+export const useOrionAnalytics = (enabled: boolean = ORION_ANALYTICS_ENABLED) => {
   const [isTracking, setIsTracking] = useState(false);
   const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).slice(2)}`);
   const [sessionStart] = useState(() => Date.now());
@@ -119,6 +128,11 @@ export const useOrionAnalytics = (enabled: boolean = true) => {
         },
         body: JSON.stringify(interaction)
       });
+
+      if (response.status === 404) {
+        logMissingAnalyticsEndpoint('skipping interaction tracking until service is ready.');
+        return false;
+      }
 
       if (!response.ok) {
         throw new Error('Failed to track interaction');
@@ -198,6 +212,11 @@ export const useOrionAnalytics = (enabled: boolean = true) => {
         })
       });
 
+      if (response.status === 404) {
+        logMissingAnalyticsEndpoint('insights API not yet ready.');
+        return [];
+      }
+
       if (!response.ok) {
         throw new Error('Failed to get insights');
       }
@@ -241,6 +260,11 @@ export const useOrionAnalytics = (enabled: boolean = true) => {
           'Content-Type': 'application/json',
         }
       });
+
+      if (response.status === 404) {
+        logMissingAnalyticsEndpoint('user analytics API not yet ready.');
+        return null;
+      }
 
       if (!response.ok) {
         throw new Error('Failed to get user analytics');
@@ -287,6 +311,11 @@ export const useOrionAnalytics = (enabled: boolean = true) => {
         }
       });
 
+      if (response.status === 404) {
+        logMissingAnalyticsEndpoint('product analytics API not yet ready.');
+        return null;
+      }
+
       if (!response.ok) {
         throw new Error('Failed to get product analytics');
       }
@@ -323,6 +352,11 @@ export const useOrionAnalytics = (enabled: boolean = true) => {
           timeWindow: '1h' // Real-time insights
         })
       });
+
+      if (response.status === 404) {
+        logMissingAnalyticsEndpoint('behavioral insights API not yet ready.');
+        return [];
+      }
 
       if (!response.ok) {
         throw new Error('Failed to generate behavioral insights');
@@ -371,6 +405,11 @@ export const useOrionAnalytics = (enabled: boolean = true) => {
         },
         body: JSON.stringify({ interactions: batchInteractions })
       });
+
+      if (response.status === 404) {
+        logMissingAnalyticsEndpoint('batch tracking disabled until service is ready.');
+        return false;
+      }
 
       if (!response.ok) {
         throw new Error('Failed to batch track interactions');

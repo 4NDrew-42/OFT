@@ -1,0 +1,103 @@
+{
+  "name": "ai-marketplace",
+  "version": "1.0.0",
+  "description": "Dynamic AI-powered art marketplace with ORION-CORE integration",
+  "private": true,
+  "workspaces": [
+    "frontend/apps/*",
+    "frontend/packages/*",
+    "backend/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "dev:frontend": "cd frontend/apps/web && npm run dev",
+    "dev:backend": "concurrently \"npm run dev:api\" \"npm run dev:ai\" \"npm run dev:websocket\"",
+    "dev:api": "cd backend/api-gateway && npm run dev",
+    "dev:ai": "cd backend/ai-service && npm run dev",
+    "dev:websocket": "cd backend/websocket-service && npm run dev",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend/apps/web && npm run build",
+    "build:backend": "concurrently \"npm run build:api\" \"npm run build:ai\"",
+    "build:api": "cd backend/api-gateway && npm run build",
+    "build:ai": "cd backend/ai-service && npm run build",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "cd frontend/apps/web && npm run test",
+    "test:backend": "cd backend/api-gateway && npm run test",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd frontend/apps/web && npm run lint",
+    "lint:backend": "cd backend/api-gateway && npm run lint",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "orion:health": "curl -s http://localhost:3003/api/ai/health",
+    "setup": "npm run setup:frontend && npm run setup:backend",
+    "setup:frontend": "cd frontend && npm install",
+    "setup:backend": "cd backend/api-gateway && npm install && cd ../ai-service && npm install && cd ../websocket-service && npm install",
+
+    "orion-dev": "node scripts/orion-dev-tools.js",
+    "orion:init": "node scripts/orion-dev-tools.js init",
+    "orion:search": "node scripts/orion-dev-tools.js search",
+    "orion:analytics": "node scripts/orion-dev-tools.js analytics",
+    "orion:health-dev": "node scripts/orion-dev-tools.js health",
+
+    "store:arch": "node scripts/orion-dev-tools.js arch-decision",
+    "store:pattern": "node scripts/orion-dev-tools.js code-pattern",
+    "store:integration": "node scripts/orion-dev-tools.js orion-integration",
+    "store:feature": "node scripts/orion-dev-tools.js feature",
+
+    "docs:generate": "concurrently \"npm run docs:api\" \"npm run docs:mermaid\"",
+    "docs:api": "swagger-jsdoc -d docs/api/swagger.json backend/*/routes/*.js",
+    "docs:mermaid": "mmdc -i docs/diagrams/architecture/*.mmd -o docs/diagrams/architecture/",
+    "docs:validate": "markdownlint docs/**/*.md"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "@types/node": "^20.10.5",
+    "typescript": "^5.3.3",
+    "commander": "^11.1.0",
+    "axios": "^1.6.5",
+    "swagger-jsdoc": "^6.2.8",
+    "@mermaid-js/mermaid-cli": "^10.6.1",
+    "markdownlint-cli": "^0.38.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "keywords": [
+    "ai",
+    "marketplace",
+    "art",
+    "nextjs",
+    "orion-core",
+    "vector-search",
+    "real-time",
+    "motion",
+    "mcp",
+    "rag",
+    "embeddings"
+  ],
+  "author": "AI Marketplace Team",
+  "license": "MIT",
+  "orion": {
+    "integration_level": "deep",
+    "services_used": [
+      "vector-search",
+      "embeddings",
+      "memory-management",
+      "mcp-protocol",
+      "rag-capabilities"
+    ],
+    "development_tools": {
+      "context_manager": "backend/ai-service/orion-bridge/development-context.js",
+      "cli_tools": "scripts/orion-dev-tools.js",
+      "commands": [
+        "npm run orion:init",
+        "npm run orion:search \"<query>\"",
+        "npm run orion:analytics",
+        "npm run store:arch",
+        "npm run store:pattern"
+      ]
+    }
+  }
+}

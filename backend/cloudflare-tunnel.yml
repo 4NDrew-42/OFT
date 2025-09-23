@@ -1,0 +1,24 @@
+tunnel: ai-marketplace-backend
+credentials-file: /root/.cloudflared/ai-marketplace-backend.json
+
+ingress:
+  # AI Service API
+  - hostname: ai-marketplace-api.your-domain.com
+    service: http://localhost:4001
+    originRequest:
+      httpHostHeader: localhost:4001
+      
+  # WebSocket Service
+  - hostname: ai-marketplace-ws.your-domain.com
+    service: http://localhost:3004
+    originRequest:
+      httpHostHeader: localhost:3004
+      
+  # ORION-CORE Vector Service (if needed externally)
+  - hostname: ai-marketplace-vector.your-domain.com
+    service: http://192.168.50.79:8081
+    originRequest:
+      httpHostHeader: 192.168.50.79:8081
+      
+  # Catch-all rule (required)
+  - service: http_status:404
