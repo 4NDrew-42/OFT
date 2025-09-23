@@ -4,7 +4,7 @@
  */
 
 export const VERSION_INFO = {
-  version: '1.2.1',
+  version: '1.2.2',
   buildDate: new Date().toISOString(),
   gitCommit: process.env.VERCEL_GIT_COMMIT_SHA?.substring(0, 7) || 'local',
   environment: process.env.NEXT_PUBLIC_VERCEL_ENV || 'development',
