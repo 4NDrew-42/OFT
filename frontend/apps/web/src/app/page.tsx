@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { DynamicContentFeed } from '@/components/feed/DynamicContentFeed';
 import { OrionVectorSearch } from '@/components/search/OrionVectorSearch';
 import { API_BASE_URL, WS_BASE_URL, ORION_VECTOR_URL, VERCEL_ENV } from '@/lib/env';
+import { getFullVersionInfo, getBuildInfo } from '@/lib/version';
 
 export default function HomePage() {
   return (
@@ -11,7 +12,17 @@ export default function HomePage() {
       <header className="border-b border-border bg-card/50 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 py-10 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-widest text-muted-foreground">ORION-CORE Connected</p>
+            <div className="flex items-center gap-3 mb-2">
+              <p className="text-sm uppercase tracking-widest text-muted-foreground">ORION-CORE Connected</p>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-300">
+                  {getFullVersionInfo()}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {getBuildInfo()}
+                </span>
+              </div>
+            </div>
             <h1 className="text-3xl font-semibold md:text-4xl">
               AI Marketplace Experience Shell
             </h1>

@@ -11,11 +11,40 @@ const { v4: uuidv4 } = require('uuid');
 const app = express();
 const PORT = process.env.PORT || 3004;
 
-// Enable CORS for all routes
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:3005', 'https://*.vercel.app'],
-  credentials: true
-}));
+// Enhanced CORS configuration
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3005',
+      /^https:\/\/.*\.vercel\.app$/,
+      /^https:\/\/.*\.trycloudflare\.com$/,
+      /^https:\/\/.*\.ngrok\.io$/
+    ];
+
+    const isAllowed = allowedOrigins.some(pattern => {
+      if (typeof pattern === 'string') {
+        return origin === pattern;
+      } else {
+        return pattern.test(origin);
+      }
+    });
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
+
+app.use(cors(corsOptions));
 
 app.use(express.json());
 
