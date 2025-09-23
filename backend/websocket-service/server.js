@@ -20,9 +20,12 @@ const corsOptions = {
     const allowedOrigins = [
       'http://localhost:3000',
       'http://localhost:3005',
+      'https://www.sidekickportal.com',
+      'https://sidekickportal.com',
       /^https:\/\/.*\.vercel\.app$/,
       /^https:\/\/.*\.trycloudflare\.com$/,
-      /^https:\/\/.*\.ngrok\.io$/
+      /^https:\/\/.*\.ngrok\.io$/,
+      /^https:\/\/.*\.loca\.lt$/
     ];
 
     const isAllowed = allowedOrigins.some(pattern => {
@@ -66,11 +69,13 @@ const wss = new WebSocket.Server({
   server,
   path: '/',
   verifyClient: (info) => {
-    // Allow connections from localhost and Vercel
+    // Allow connections from localhost, Vercel, and production domains
     const origin = info.origin;
-    return !origin || 
-           origin.includes('localhost') || 
+    return !origin ||
+           origin.includes('localhost') ||
            origin.includes('vercel.app') ||
+           origin.includes('sidekickportal.com') ||
+           origin.includes('loca.lt') ||
            origin.includes('127.0.0.1');
   }
 });
