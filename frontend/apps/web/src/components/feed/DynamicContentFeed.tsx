@@ -20,6 +20,9 @@ import { useOrionRecommendations } from '@/hooks/useOrionRecommendations';
 import { useOrionSimilarity } from '@/hooks/useOrionSimilarity';
 import { useOrionAnalytics } from '@/hooks/useOrionAnalytics';
 
+// Environment configuration
+import { WS_BASE_URL } from '@/lib/env';
+
 interface ContentItem {
   id: string;
   type: 'product' | 'video' | 'story' | 'trending' | 'ai_curated';
@@ -368,7 +371,7 @@ export const DynamicContentFeed: React.FC<DynamicContentFeedProps> = ({
   useEffect(() => {
     if (!enableRealTimeUpdates) return;
 
-    const ws = new WebSocket(`ws://localhost:3002?userId=${userId || 'anonymous'}`);
+    const ws = new WebSocket(`${WS_BASE_URL}?userId=${userId || 'anonymous'}`);
     wsRef.current = ws;
 
     ws.onmessage = (event) => {
