@@ -57,6 +57,21 @@ export const OrionVectorSearch: React.FC<OrionVectorSearchProps> = ({
   maxResults = 20,
   className = ""
 }) => {
+  // Debug environment variables on component mount
+  console.log('🔍 ORION SEARCH DEBUG: Component initialized', {
+    API_BASE_URL,
+    placeholder,
+    maxResults,
+    enableVoiceSearch,
+    enableImageSearch,
+    enableFilters,
+    environmentVars: {
+      NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+      NEXT_PUBLIC_WS_URL: process.env.NEXT_PUBLIC_WS_URL,
+      NEXT_PUBLIC_ORION_API_URL: process.env.NEXT_PUBLIC_ORION_API_URL,
+      NEXT_PUBLIC_VERCEL_ENV: process.env.NEXT_PUBLIC_VERCEL_ENV
+    }
+  });
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -109,64 +124,120 @@ export const OrionVectorSearch: React.FC<OrionVectorSearchProps> = ({
     searchQuery: string,
     searchFilters: SearchFilters = filters
   ): Promise<SearchResult[]> => {
-    if (!searchQuery.trim()) return [];
+    console.log('🔍 ORION SEARCH DEBUG: Starting search', {
+      query: searchQuery,
+      API_BASE_URL,
+      searchFilters,
+      maxResults
+    });
+
+    if (!searchQuery.trim()) {
+      console.log('🔍 ORION SEARCH DEBUG: Empty query, returning empty results');
+      return [];
+    }
 
     setIsSearching(true);
+    console.log('🔍 ORION SEARCH DEBUG: Set searching state to true');
 
     try {
+      const requestUrl = `${API_BASE_URL}/api/ai/search/vector`;
+      const requestBody = {
+        query: searchQuery,
+        filters: {
+          priceRange: searchFilters.priceRange,
+          categories: searchFilters.categories.length > 0 ? searchFilters.categories : undefined,
+          styles: searchFilters.styles.length > 0 ? searchFilters.styles : undefined,
+          colors: searchFilters.colors.length > 0 ? searchFilters.colors : undefined,
+          minAiScore: searchFilters.aiScore
+        },
+        limit: maxResults,
+        includeReasonings: true,
+        enableRAG: true,
+        semanticSearch: true
+      };
+
+      console.log('🔍 ORION SEARCH DEBUG: Making API request', {
+        url: requestUrl,
+        method: 'POST',
+        body: requestBody
+      });
+
       // Call ORION-CORE vector search API
-      const response = await fetch(`${API_BASE_URL}/api/ai/search/vector`, {
+      const response = await fetch(requestUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          query: searchQuery,
-          filters: {
-            priceRange: searchFilters.priceRange,
-            categories: searchFilters.categories.length > 0 ? searchFilters.categories : undefined,
-            styles: searchFilters.styles.length > 0 ? searchFilters.styles : undefined,
-            colors: searchFilters.colors.length > 0 ? searchFilters.colors : undefined,
-            minAiScore: searchFilters.aiScore
-          },
-          limit: maxResults,
-          includeReasonings: true,
-          enableRAG: true,
-          semanticSearch: true
-        })
+        body: JSON.stringify(requestBody)
+      });
+
+      console.log('🔍 ORION SEARCH DEBUG: API response received', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
       });
 
       if (!response.ok) {
-        throw new Error('Vector search failed');
+        const errorText = await response.text();
+        console.error('🔍 ORION SEARCH DEBUG: API response not OK', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText
+        });
+        throw new Error(`Vector search failed: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
+      console.log('🔍 ORION SEARCH DEBUG: API response data', data);
 
       if (!data.success) {
+        console.error('🔍 ORION SEARCH DEBUG: API returned success=false', data);
         throw new Error(data.error || 'Search failed');
       }
 
       const searchResults: SearchResult[] = data.results.map((result: any) => transformToSearchResult(result));
+      console.log('🔍 ORION SEARCH DEBUG: Transformed search results', {
+        originalResults: data.results,
+        transformedResults: searchResults,
+        resultCount: searchResults.length
+      });
 
       // Track search analytics
-      await trackSearch(searchQuery, searchResults, {
-        type: 'vector',
-        filters: searchFilters,
-        processingTime: data.processingTime
-      });
+      try {
+        await trackSearch(searchQuery, searchResults, {
+          type: 'vector',
+          filters: searchFilters,
+          processingTime: data.processingTime
+        });
+        console.log('🔍 ORION SEARCH DEBUG: Analytics tracking successful');
+      } catch (analyticsError) {
+        console.warn('🔍 ORION SEARCH DEBUG: Analytics tracking failed', analyticsError);
+      }
 
       // Get AI suggestions for related searches
       if (data.suggestions) {
         setAiSuggestions(data.suggestions);
+        console.log('🔍 ORION SEARCH DEBUG: Set AI suggestions', data.suggestions);
       }
+
+      console.log('🔍 ORION SEARCH DEBUG: Search completed successfully', {
+        resultCount: searchResults.length,
+        processingTime: data.processingTime
+      });
 
       return searchResults;
 
     } catch (error) {
-      console.error('ORION vector search error:', error);
+      console.error('🔍 ORION SEARCH DEBUG: Search error occurred', {
+        error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        errorStack: error instanceof Error ? error.stack : undefined
+      });
       return [];
     } finally {
       setIsSearching(false);
+      console.log('🔍 ORION SEARCH DEBUG: Set searching state to false');
     }
   }, [filters, maxResults, trackSearch, transformToSearchResult]);
 
@@ -228,20 +299,40 @@ export const OrionVectorSearch: React.FC<OrionVectorSearchProps> = ({
    * Handle text search with debouncing
    */
   const handleTextSearch = useCallback((searchQuery: string) => {
+    console.log('🔍 ORION SEARCH DEBUG: handleTextSearch called', {
+      searchQuery,
+      queryLength: searchQuery.trim().length,
+      currentDebounceRef: !!debounceRef.current
+    });
+
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
+      console.log('🔍 ORION SEARCH DEBUG: Cleared existing debounce timeout');
     }
 
     debounceRef.current = setTimeout(async () => {
+      console.log('🔍 ORION SEARCH DEBUG: Debounce timeout triggered', {
+        searchQuery,
+        queryLength: searchQuery.trim().length,
+        minLength: 2
+      });
+
       if (searchQuery.trim().length >= 2) {
+        console.log('🔍 ORION SEARCH DEBUG: Query meets minimum length, performing search');
         const searchResults = await performVectorSearch(searchQuery, filters);
+        console.log('🔍 ORION SEARCH DEBUG: Search completed, setting results', {
+          resultCount: searchResults.length,
+          results: searchResults
+        });
         setResults(searchResults);
 
         // Add to search history
         if (searchQuery.trim() && !searchHistory.includes(searchQuery.trim())) {
           setSearchHistory(prev => [searchQuery.trim(), ...prev.slice(0, 9)]);
+          console.log('🔍 ORION SEARCH DEBUG: Added to search history', searchQuery.trim());
         }
       } else {
+        console.log('🔍 ORION SEARCH DEBUG: Query too short, clearing results');
         setResults([]);
       }
     }, 300);
@@ -318,8 +409,18 @@ export const OrionVectorSearch: React.FC<OrionVectorSearchProps> = ({
 
   // Handle query changes
   useEffect(() => {
+    console.log('🔍 ORION SEARCH DEBUG: useEffect triggered', {
+      query,
+      searchMode,
+      queryLength: query.length,
+      shouldTriggerSearch: searchMode === 'text'
+    });
+
     if (searchMode === 'text') {
+      console.log('🔍 ORION SEARCH DEBUG: Triggering handleTextSearch');
       handleTextSearch(query);
+    } else {
+      console.log('🔍 ORION SEARCH DEBUG: Not in text mode, skipping search');
     }
   }, [query, searchMode, handleTextSearch]);
 
@@ -340,7 +441,15 @@ export const OrionVectorSearch: React.FC<OrionVectorSearchProps> = ({
               ref={searchInputRef}
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                console.log('🔍 ORION SEARCH DEBUG: Input onChange triggered', {
+                  newValue: e.target.value,
+                  oldValue: query,
+                  searchMode,
+                  disabled: searchMode !== 'text'
+                });
+                setQuery(e.target.value);
+              }}
               placeholder={placeholder}
               className="w-full pl-12 pr-4 py-3 bg-transparent border-none outline-none text-lg text-gray-900 placeholder:text-gray-500 dark:text-gray-100"
               disabled={searchMode !== 'text'}
