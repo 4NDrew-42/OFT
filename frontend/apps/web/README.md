@@ -2,6 +2,10 @@
 
 This Next.js 14 application is the thin Vercel-hosted surface for the AI Marketplace. All dynamic blocks proxy to the self-hosted ORION-CORE services through secure tunnels.
 
+## Project Management
+- See the Phase 1 MVP plan and decisions in [PM.md](./PM.md).
+
+
 ## Local Development
 
 ```bash

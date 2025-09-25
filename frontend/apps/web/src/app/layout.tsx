@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { Inter } from 'next/font/google';
 import '../styles/globals.css';
-
+import SystemStatusChip from '@/components/SystemStatusChip';
 import AppProviders from './providers';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -20,7 +20,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} min-h-screen bg-background text-foreground`}>
         <AppProviders>
-          <div className="min-h-screen pb-16">
+          <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="mx-auto flex max-w-screen-sm items-center justify-between px-6 py-3">
+              <Link href="/" className="font-medium opacity-90 hover:opacity-100">ORION</Link>
+              {/* System status chip */}
+              <div>
+                <SystemStatusChip />
+              </div>
+            </div>
+          </header>
+
+          <div className="min-h-screen pb-16 pt-2">
             {children}
           </div>
 

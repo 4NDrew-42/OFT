@@ -1,0 +1,76 @@
+import { CHAT_STREAM_URL, STATUS_URL, OCR_URL, FABRIC_BASE_URL } from "@/lib/env";
+
+export async function mintJWT(sub: string): Promise<string> {
+  const res = await fetch("/api/auth/mint-jwt", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sub }),
+  });
+  if (!res.ok) throw new Error(`Failed to mint JWT: ${res.status}`);
+  const data = await res.json();
+  return data.token as string;
+}
+
+function generateRequestId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function authHeaders(token: string) {
+  return { Authorization: `Bearer ${token}`, 'X-Request-Id': generateRequestId() } as const;
+}
+
+export async function getSystemStatus(token: string) {
+  const r = await fetch(STATUS_URL, { headers: authHeaders(token), cache: "no-store" });
+  if (!r.ok) throw new Error(`Status error ${r.status}`);
+  return r.json();
+}
+
+export async function postOCR(file: File, token: string) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const r = await fetch(OCR_URL, { method: "POST", headers: authHeaders(token), body: fd });
+  if (!r.ok) throw new Error(`OCR error ${r.status}`);
+  return r.json();
+}
+
+export async function getFabricPatterns(token: string) {
+  const r = await fetch(`${FABRIC_BASE_URL}/fabric_patterns`, { headers: authHeaders(token), cache: "no-store" });
+  if (!r.ok) throw new Error(`Patterns error ${r.status}`);
+  return r.json();
+}
+
+// Placeholder: wire to backend when notes search endpoint is exposed on Fabric Bridge
+export async function searchNotes(query: string, topK: number, semantic: boolean, token: string) {
+  try {
+    const r = await fetch(`${FABRIC_BASE_URL}/api/notes/search?q=${encodeURIComponent(query)}&k=${Math.min(Math.max(topK, 1), 25)}&semantic=${semantic?1:0}`,
+      { headers: authHeaders(token), cache: "no-store" });
+    if (!r.ok) throw new Error(`Search error ${r.status}`);
+    return r.json();
+  } catch {
+    return { items: [] };
+  }
+}
+
+// Placeholder: wire to Fabric pattern (event_extract) when exposed
+export async function eventExtract(text: string, token: string) {
+  try {
+    const r = await fetch(`${FABRIC_BASE_URL}/api/calendar/event_extract`, {
+      method: "POST",
+      headers: { ...authHeaders(token), "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!r.ok) throw new Error(`Calendar error ${r.status}`);
+    return r.json();
+  } catch {
+    return { title: text.slice(0, 40), when: new Date().toISOString(), location: "", notes: "" };
+  }
+}
+
+// For chat streaming, prefer the proxy route to attach Authorization server-side
+export function getChatProxyUrl(q: string, sub: string) {
+  const u = new URL("/api/proxy/chat-stream", window.location.origin);
+  u.searchParams.set("q", q);
+  u.searchParams.set("sub", sub);
+  return u.toString();
+}
