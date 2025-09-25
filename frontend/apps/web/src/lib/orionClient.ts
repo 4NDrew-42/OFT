@@ -74,3 +74,19 @@ export function getChatProxyUrl(q: string, sub: string) {
   u.searchParams.set("sub", sub);
   return u.toString();
 }
+
+
+export async function getSystemStatusProxy(sub: string) {
+  const r = await fetch(`/api/proxy/system-status?sub=${encodeURIComponent(sub)}`, { cache: 'no-store' });
+  if (!r.ok) throw new Error(`Status error ${r.status}`);
+  return r.json();
+}
+
+export async function postOCRProxy(file: File, sub: string) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const r = await fetch(`/api/proxy/ocr?sub=${encodeURIComponent(sub)}`, { method: 'POST', body: fd });
+  if (!r.ok) throw new Error(`OCR error ${r.status}`);
+  const ct = r.headers.get('content-type') || '';
+  return ct.includes('application/json') ? r.json() : r.text();
+}

@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "next-auth/react";
-import { getSystemStatus, mintJWT } from "@/lib/orionClient";
+import { getSystemStatusProxy } from "@/lib/orionClient";
 
 function cls(...xs: Array<string | false | null | undefined>) {
   return xs.filter(Boolean).join(" ");
@@ -17,8 +17,7 @@ export default function SystemStatusChip() {
     queryKey: ["system-status"],
     queryFn: async () => {
       if (!sub) throw new Error("no_sub");
-      const token = await mintJWT(sub);
-      return getSystemStatus(token);
+      return getSystemStatusProxy(sub);
     },
     enabled: !!sub,
     staleTime: 15_000,
