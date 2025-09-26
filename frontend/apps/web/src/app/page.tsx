@@ -41,7 +41,7 @@ export default function LandingLoginPage() {
               type="email"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+              className="w-full rounded-md border border-border bg-input text-foreground px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground"
               placeholder="you@example.com"
               required
             />
@@ -52,7 +52,7 @@ export default function LandingLoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+              className="w-full rounded-md border border-border bg-input text-foreground px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground"
               placeholder="Your password"
               required
             />

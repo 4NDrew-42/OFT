@@ -35,7 +35,7 @@ export default function CalendarPage() {
       <h1 className="text-xl font-semibold mb-3">Calendar</h1>
 
       <form onSubmit={onAdd} className="flex gap-2 items-center">
-        <input className="flex-1 rounded border px-3 py-2 text-sm" placeholder="e.g., Lunch with Sam tomorrow 12pm at Cafe Rio" value={text} onChange={(e)=>setText(e.target.value)} />
+        <input className="flex-1 rounded border px-3 py-2 text-sm bg-input text-foreground placeholder:text-muted-foreground border-border focus:ring-2 focus:ring-ring focus:border-transparent" placeholder="e.g., Lunch with Sam tomorrow 12pm at Cafe Rio" value={text} onChange={(e)=>setText(e.target.value)} />
         <button disabled={!sub || !text || loading} className="rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-50">{loading?"Adding...":"Quick add"}</button>
       </form>
 

@@ -1,7 +1,92 @@
 # ORION Personal Portal (Frontend) — Product & Engineering Plan (MVP)
 
-Status: Planning approved (Phase 1 MVP). Timebox: ~1 week.
-Scope: Next.js App Router (Vercel) mobile-first portal integrating with ORION-CORE via Cloudflare tunnel.
+Status: **ORION-CORE Integration Analysis Complete** (Phase 1.5). Timebox: ~2 weeks.
+Scope: Next.js App Router (Vercel) mobile-first portal replicating ORION-CORE frontend functionality (http://192.168.50.79:3002/) via Cloudflare tunnel.
+
+## 0) ORION-CORE Frontend Analysis & Mobile Integration Status
+
+### **Current Progress: ORION-CORE Analysis Complete**
+- **ORION-CORE Frontend Discovered**: Full Next.js application at `http://192.168.50.79:3002/`
+- **Sophisticated Architecture**: Glass panel "nebula" design system with dual chat systems
+- **Advanced AI Integration**: Gemini 2.5 Flash + 245 RAG memories across 20 categories
+- **Mobile Recreation Target**: Feature parity with desktop ORION-CORE in mobile-first design
+
+### **Key Findings from ORION-CORE Frontend**
+```yaml
+Chat Systems (2 implementations):
+  Enhanced Chat (/enhanced-chat):
+    - "Claude-like AI" with provider switching (DeepSeek/Gemini)
+    - 50+ MCP tools integration
+    - Metadata tracking (Memory, Tokens, Confidence, Messages)
+    - History management and session control
+
+  Intelligent Chat (/intelligent-chat): [PRIMARY TARGET]
+    - Gemini 2.5 Flash as primary AI provider
+    - 245 ORION-CORE memories across 20 categories
+    - Sophisticated reasoning with conversation memory
+    - Tool integration and source attribution
+    - Real-time RAG with context synthesis
+
+Design System:
+  - Glass Components: glass-nav, glass-card, glass-button, glass-input
+  - Nebula Colors: gradient text, status indicators, transparency layers
+  - Advanced Backgrounds: radial gradients, ellipse patterns
+  - Mobile Adaptations: touch targets, performance optimizations
+
+System Features:
+  - Real-time node monitoring (ORION-MEM, ORION-ORACLE, ORION-PC, ORIONLPC, LEVIATHAN)
+  - Fabric AI pattern integration (8+ patterns for post-processing)
+  - Advanced analytics and performance monitoring
+  - Agent orchestration and file management
+```
+
+### **Mobile Integration Requirements (Updated)**
+```yaml
+Priority 1 - Core Chat Functionality:
+  - Replicate Intelligent Chat with Gemini 2.5 Flash
+  - RAG integration with 245 memories across 20 categories
+  - Glass panel UI optimized for mobile touch interactions
+  - Provider switching (Gemini primary, DeepSeek secondary)
+  - Conversation memory and session management
+
+Priority 2 - System Integration:
+  - Real-time system status monitoring
+  - Fabric AI pattern integration for response enhancement
+  - Mobile-optimized glass component system
+  - Touch gestures and haptic feedback
+
+Priority 3 - Advanced Features:
+  - Voice input and offline capabilities
+  - Push notifications for system alerts
+  - Advanced analytics dashboard
+  - Agent orchestration interface
+```
+
+### **Updated Timeline**
+```yaml
+Week 1: Backend API Development
+  - Intelligent Chat endpoints (/api/intelligent-chat)
+  - RAG system integration (245 memories, 20 categories)
+  - System status APIs (/api/nodes/status)
+  - Gemini 2.5 Flash integration
+
+Week 2: Mobile UI Implementation
+  - Glass component system (mobile-optimized)
+  - Intelligent Chat interface
+  - System status dashboard
+  - Provider switching and session management
+
+Week 3: Integration & Testing
+  - End-to-end chat functionality
+  - RAG system validation
+  - Mobile performance optimization
+  - Cross-device testing
+
+Week 4: Polish & Deployment
+  - Advanced features (voice, offline, notifications)
+  - Production deployment and monitoring
+  - Documentation and handoff
+```
 
 ## 1) Goals, KPIs, and Non‑Functional Targets
 - Primary goals: mobile-first Assistant + Notes, with Calendar Quick Add and Expenses stub; Google OAuth already live
@@ -15,18 +100,158 @@ Scope: Next.js App Router (Vercel) mobile-first portal integrating with ORION-CO
 - Cloudflare Tunnel → ORION-CORE services
 - PWA: app shell caching now; Workbox + background sync later
 
-## 3) Backend API Surface (assumed contracts)
-Base URL: NEXT_PUBLIC_ORION_API_URL (single gateway)
-- POST /api/vector/store → { id, ok }
-- POST /api/vector/search → { results: [{ id, score, snippet?, metadata? }] }
-- POST /api/fabric/execute →
-  - pattern=note_enrich → { title, summary, tags[] }
-  - pattern=event_extract → { title, start, end?, location? }
-- GET /chat-streaming (SSE)
-  - onmessage: token chunks; final: [DONE] or event:done
-- GET /system-status → { ok, services: [{ name, ok, latency_ms? }] }
+## 3) Backend API Surface (ORION-CORE Integration Requirements)
 
-Open confirmations required (see §12): SSE handshake model; payload limits; auth requirements.
+### **Required APIs for ORION-CORE Feature Parity**
+Base URL: NEXT_PUBLIC_ORION_API_URL (single gateway)
+
+#### **Priority 1: Intelligent Chat System**
+```typescript
+// Primary chat endpoint (replicates ORION-CORE Intelligent Chat)
+POST /api/intelligent-chat → {
+  body: {
+    message: string,
+    sessionId: string,
+    includeRAG: boolean,
+    provider: "gemini" | "deepseek",
+    ragCategories?: string[] // from 20 available categories
+  },
+  response: {
+    response: string,
+    sources: Array<{
+      id: string,
+      content: string,
+      category: string,
+      relevance: number,
+      source: string
+    }>,
+    metadata: {
+      tokens: number,
+      confidence: number,
+      processingTime: number,
+      ragMemoriesUsed: number,
+      provider: string
+    },
+    sessionInfo: {
+      messageCount: number,
+      conversationMemory: boolean
+    }
+  }
+}
+
+// RAG Memory System (245 memories across 20 categories)
+POST /api/rag/search → {
+  body: { query: string, limit: number, categories?: string[] },
+  response: {
+    results: Array<{
+      id: string,
+      content: string,
+      category: string,
+      relevance: number,
+      metadata: object
+    }>,
+    totalMemories: 245,
+    categoriesAvailable: 20,
+    searchMetadata: {
+      queryTime: number,
+      resultsFound: number
+    }
+  }
+}
+
+// RAG Categories (20 categories from ORION-CORE)
+GET /api/rag/categories → {
+  response: {
+    categories: Array<{
+      name: string,
+      count: number,
+      description: string,
+      examples: string[]
+    }>,
+    totalCategories: 20,
+    totalMemories: 245
+  }
+}
+```
+
+#### **Priority 2: System Status & Monitoring**
+```typescript
+// Node Status (ORION-CORE nodes: ORION-MEM, ORION-ORACLE, ORION-PC, ORIONLPC, LEVIATHAN)
+GET /api/nodes/status → {
+  response: {
+    nodes: Array<{
+      name: "ORION-MEM" | "ORION-ORACLE" | "ORION-PC" | "ORIONLPC" | "LEVIATHAN",
+      status: "online" | "warning" | "error",
+      uptime: number,
+      services: Array<{
+        name: string,
+        port: number,
+        status: string,
+        latency?: number
+      }>,
+      hardware?: {
+        cpu: string,
+        memory: string,
+        gpu?: string
+      }
+    }>,
+    systemHealth: "healthy" | "degraded" | "critical",
+    totalNodes: 5,
+    activeNodes: number
+  }
+}
+
+// Real-time Metrics (matches ORION-CORE dashboard)
+GET /api/realtime/metrics → {
+  response: {
+    activeNodes: number,
+    runningServices: number,
+    totalUptime: number,
+    systemLoad: {
+      cpu: number,
+      memory: number,
+      network: number
+    },
+    aiMetrics: {
+      ragMemories: 245,
+      fabricPatterns: number,
+      activeChats: number
+    }
+  }
+}
+```
+
+#### **Priority 3: AI Provider Integration**
+```typescript
+// Provider Management (Gemini 2.5 Flash primary, DeepSeek secondary)
+GET /api/ai/providers → {
+  response: {
+    providers: Array<{
+      name: "gemini" | "deepseek" | "local",
+      status: "available" | "unavailable" | "limited",
+      model: string,
+      capabilities: string[],
+      latency?: number
+    }>,
+    primary: "gemini",
+    fallback: "deepseek"
+  }
+}
+
+// Session Management (conversation memory)
+POST /api/chat/session → {
+  body: { action: "create" | "retrieve" | "clear", sessionId?: string },
+  response: {
+    sessionId: string,
+    messageCount: number,
+    conversationMemory: boolean,
+    createdAt: string,
+    lastActivity: string
+  }
+}
+```
+
+Open confirmations required: Gemini 2.5 Flash API integration; RAG memory export from ORION-CORE; session persistence strategy.
 
 ## 3a) Backend Integration Requirements Analysis (from ORION-CORE)
 - Current services (prod-ready):
@@ -329,10 +554,14 @@ Day 7
   - [ ] Web Vitals beacon; status polling; error boundaries; e2e smoke
 
 ## 18) Change Log
-- v0.2 (backend contracts): added Backend Integration Requirements Analysis (§3a) and Backend Contracts (§3b); aligned SSE spec (GET /api/chat-streaming), CORS, JWT auth, OCR stub, vector limits, rate limits; awaiting backend confirmations (tunnel domain, JWT claims, optional POST pre-step).
 
+- **v0.4 (ORION-CORE Integration Analysis)**: Discovered full ORION-CORE frontend at http://192.168.50.79:3002/ with sophisticated glass panel UI, dual chat systems (Enhanced Chat + Intelligent Chat), Gemini 2.5 Flash integration, and 245 RAG memories across 20 categories. Updated PM with mobile recreation requirements, new API specifications for intelligent chat system, RAG integration, and system monitoring. Timeline extended to 2-3 weeks for feature parity implementation. Next: comprehensive backend team prompt and mobile UI development.
+
+- v0.3.1 (incident): Production DNS/ingress degraded — fabric.sidekickportal.com does not resolve externally. Frontend proxy functions deployed and invoked from Vercel, but upstream returns 404/upstream_error due to unreachable Fabric Bridge. Action: restore Cloudflare tunnel ingress mapping (fabric.sidekickportal.com → http://localhost:8089), validate, restart tunnel, then re‑run prod smokes. Pending: confirm Vercel envs present (ORION_SHARED_JWT_SECRET, ORION_SHARED_JWT_ISS, ORION_SHARED_JWT_AUD, NEXT_PUBLIC_ORION_API_URL) and redeploy.
 
 - v0.3 (ingress + validation): Cloudflare ingress configured for fabric.sidekickportal.com → 8089; Fabric Bridge deployed; MCP remediation + revalidation complete; endpoints healthy (JWT required for status/stream); OCR 5MB limit and prompt ≤8KB enforced; degraded alert cleared. Next: set frontend envs to production host and wire Notes/Calendar when backends are live.
+
+- v0.2 (backend contracts): added Backend Integration Requirements Analysis (§3a) and Backend Contracts (§3b); aligned SSE spec (GET /api/chat-streaming), CORS, JWT auth, OCR stub, vector limits, rate limits; awaiting backend confirmations (tunnel domain, JWT claims, optional POST pre-step).
 
 - v0.1 (planning): decisions locked; task list created; awaiting backend/advisor confirmations (see §12–13)
 

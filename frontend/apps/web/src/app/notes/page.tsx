@@ -36,7 +36,7 @@ export default function NotesPage() {
       <h1 className="text-xl font-semibold mb-3">Notes</h1>
 
       <div className="flex gap-2 items-center mb-2">
-        <input className="flex-1 rounded border px-3 py-2 text-sm" placeholder="Search notes..." value={q} onChange={(e)=>setQ(e.target.value)} />
+        <input className="flex-1 rounded border px-3 py-2 text-sm bg-input text-foreground placeholder:text-muted-foreground border-border focus:ring-2 focus:ring-ring focus:border-transparent" placeholder="Search notes..." value={q} onChange={(e)=>setQ(e.target.value)} />
       </div>
       <div className="flex items-center gap-3 mb-2 text-sm">
         <label className="flex items-center gap-2"><input type="checkbox" checked={semantic} onChange={(e)=>setSemantic(e.target.checked)} /> Semantic</label>

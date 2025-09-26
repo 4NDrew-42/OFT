@@ -36,11 +36,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
           {/* Bottom nav */}
           <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/90 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-            <div className="mx-auto flex max-w-screen-sm items-center justify-between px-6 py-3 text-sm">
+            <div className="mx-auto flex max-w-screen-sm items-center justify-between px-4 py-3 text-xs">
               <Link href="/assistant" className="opacity-90 hover:opacity-100">Assistant</Link>
               <Link href="/notes" className="opacity-90 hover:opacity-100">Notes</Link>
               <Link href="/calendar" className="opacity-90 hover:opacity-100">Calendar</Link>
               <Link href="/expenses" className="opacity-90 hover:opacity-100">Expenses</Link>
+              <Link href="/system-status" className="opacity-90 hover:opacity-100">Status</Link>
             </div>
           </nav>
         </AppProviders>

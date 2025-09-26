@@ -39,7 +39,7 @@ export default function ExpensesPage() {
       <h1 className="text-xl font-semibold mb-3">Expenses</h1>
 
       <form onSubmit={onSubmit} className="flex items-center gap-2">
-        <input id="file-input" type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="flex-1 text-sm" />
+        <input id="file-input" type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="flex-1 text-sm bg-input text-foreground border border-border rounded px-3 py-2 focus:ring-2 focus:ring-ring focus:border-transparent" />
         <button disabled={!file || !sub || loading} className="rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-50">{loading ? "Uploading..." : "Upload"}</button>
       </form>
 
