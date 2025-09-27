@@ -20,8 +20,14 @@ export default function SystemStatusChip() {
       return getSystemStatusProxy(sub);
     },
     enabled: !!sub,
-    staleTime: 15_000,
-    refetchInterval: 15_000,
+    staleTime: 60_000, // 1 minute
+    refetchInterval: 120_000, // 2 minutes - much more reasonable for system status
+    retry: (failureCount, error: any) => {
+      // Don't retry on 429 rate limit errors
+      if (error?.message?.includes('429')) return false;
+      return failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   });
 
   const status = q.data?.status as "healthy" | "degraded" | "down" | undefined;

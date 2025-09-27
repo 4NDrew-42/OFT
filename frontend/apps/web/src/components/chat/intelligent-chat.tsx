@@ -7,7 +7,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Brain, Database, Cpu, Zap, Clock, Sparkles, History, Trash2 } from 'lucide-react';
+import { Send, Brain, Database, Cpu, Zap, Clock, Sparkles, History, Trash2, Copy, Check } from 'lucide-react';
 import { GlassPanel, GlassButton, GlassInput, GlassCard, StatusIndicator, NebulaBackground } from '@/components/ui/glass-components';
 import { cn } from '@/lib/utils';
 
@@ -313,19 +313,55 @@ interface MessageBubbleProps {
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message, showMetadata }) => {
   const isUser = message.type === 'user';
-  
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+    } catch (error) {
+      console.error('Failed to copy text:', error);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = message.content;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   return (
     <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
       <div className={cn('max-w-[80%]', isUser ? 'ml-12' : 'mr-12')}>
         <GlassCard
           variant={isUser ? 'default' : 'elevated'}
           className={cn(
-            isUser 
-              ? 'bg-blue-500/20 border-blue-400/30' 
+            'relative group',
+            isUser
+              ? 'bg-blue-500/20 border-blue-400/30'
               : 'bg-white/5 border-white/10'
           )}
         >
-          <div className="whitespace-pre-wrap text-white text-sm leading-relaxed">
+          {/* Copy button for assistant messages */}
+          {!isUser && (
+            <button
+              onClick={handleCopy}
+              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1.5 rounded-md bg-white/10 hover:bg-white/20 text-white/60 hover:text-white/80"
+              title={copied ? 'Copied!' : 'Copy response'}
+            >
+              {copied ? (
+                <Check className="w-3.5 h-3.5" />
+              ) : (
+                <Copy className="w-3.5 h-3.5" />
+              )}
+            </button>
+          )}
+
+          <div className="whitespace-pre-wrap text-white text-sm leading-relaxed select-text">
             {message.content}
           </div>
           
