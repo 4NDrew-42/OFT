@@ -139,11 +139,16 @@ function getNodeServices(nodeName: string, status: 'running' | 'error', latency:
     ]
   };
 
-  return (serviceMap[nodeName] || []).map(service => ({
-    ...service,
-    status: (status === 'running' ? 'running' : 'error') as 'running' | 'stopped' | 'error',
-    latency: status === 'running' ? latency : undefined
-  }));
+  return (serviceMap[nodeName] || []).map(service => {
+    const serviceStatus = (status === 'running' ? 'running' : 'error') as 'running' | 'stopped' | 'error';
+    const serviceLatency = status === 'running' ? latency : undefined;
+
+    return {
+      ...service,
+      status: serviceStatus,
+      ...(serviceLatency !== undefined && { latency: serviceLatency })
+    };
+  });
 }
 
 function getNodeHardware(nodeName: string): {cpu: string, memory: string, gpu?: string} | undefined {
