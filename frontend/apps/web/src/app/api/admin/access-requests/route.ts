@@ -136,13 +136,15 @@ export async function POST(req: NextRequest) {
  */
 export async function PATCH(req: NextRequest) {
   try {
+    // Parse body first to use in audit parameters
+    const body = await req.json();
+    const { id, status, notes } = body;
+
     return await withAdminAction(
       req,
       'UPDATE_ACCESS_REQUEST',
       async (adminEmail) => {
-        const body = await req.json();
-        const { id, status, notes } = body;
-
+        // Body is already parsed above
         if (!id || !status) {
           return NextResponse.json(
             { success: false, error: 'ID and status are required' },
@@ -168,7 +170,7 @@ export async function PATCH(req: NextRequest) {
         if (status === 'approved') {
           // TODO: Add to environment variable or database
           console.log(`APPROVED: Add ${request.email} to ALLOWED_EMAILS`);
-          
+
           // For now, we'll store the approval in ORION-CORE
           try {
             await fetch('/api/orion/store-memory', {
@@ -197,8 +199,8 @@ export async function PATCH(req: NextRequest) {
         });
       },
       {
-        target: `access-request-${body.id}`,
-        details: { status: body.status, notes: body.notes }
+        target: `access-request-${id}`,
+        details: { status, notes }
       }
     );
   } catch (error) {
