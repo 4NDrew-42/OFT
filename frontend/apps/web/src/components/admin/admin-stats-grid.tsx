@@ -133,11 +133,13 @@ export function AdminStatsGrid({ stats }: StatsGridProps) {
     {
       title: 'Pending Requests',
       value: stats.pendingRequests,
-      change: stats.pendingRequests > 0 ? {
-        value: 25,
-        type: 'increase',
-        period: 'last week'
-      } : undefined,
+      ...(stats.pendingRequests > 0 && {
+        change: {
+          value: 25,
+          type: 'increase' as const,
+          period: 'last week'
+        }
+      }),
       icon: UserCheck,
       color: stats.pendingRequests > 0 ? 'yellow' : 'green',
       description: 'Awaiting approval'
