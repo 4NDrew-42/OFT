@@ -1,4 +1,4 @@
-OH NO/**
+/**
  * ORION-CORE Vector Similarity Hook
  * React hook for product similarity search using ORION-CORE vector embeddings
  * Directly interfaces with ORION-CORE vector search API
