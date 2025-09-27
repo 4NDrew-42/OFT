@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
+import {
   LayoutDashboard,
   Users,
   UserCheck,
@@ -16,7 +16,8 @@ import {
   Bell,
   LogOut,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  type LucideIcon
 } from 'lucide-react';
 import { GlassPanel } from '@/components/ui/glass-components';
 import { signOut } from 'next-auth/react';
@@ -24,7 +25,7 @@ import { signOut } from 'next-auth/react';
 interface NavigationItem {
   name: string;
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   badge?: number;
   description: string;
 }
