@@ -101,6 +101,9 @@ export const SystemStatusDashboard: React.FC = () => {
       const interval = setInterval(loadSystemStatus, 30000);
       return () => clearInterval(interval);
     }
+
+    // Return empty cleanup function when userEmail is not available
+    return () => {};
   }, [userEmail, loadSystemStatus]);
 
   const refreshStatus = () => {
