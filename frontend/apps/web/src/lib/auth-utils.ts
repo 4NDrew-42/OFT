@@ -123,8 +123,8 @@ export async function logAdminAction(
     id: crypto.randomUUID(),
     adminEmail,
     action,
-    target,
-    details,
+    ...(target && { target }),
+    ...(details && { details }),
     timestamp: new Date(),
     ipAddress: req?.ip || req?.headers.get('x-forwarded-for') || 'unknown',
     userAgent: req?.headers.get('user-agent') || 'unknown'
