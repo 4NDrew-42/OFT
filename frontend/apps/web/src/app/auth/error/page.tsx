@@ -46,8 +46,8 @@ export default function AuthErrorPage() {
   const IconComponent = errorInfo.icon;
 
   return (
-    <NebulaBackground variant="auth" className="min-h-screen flex items-center justify-center p-4">
-      <GlassPanel variant="auth" className="w-full max-w-md">
+    <NebulaBackground variant="default" className="min-h-screen flex items-center justify-center p-4">
+      <GlassPanel variant="card" className="w-full max-w-md">
         <div className="text-center space-y-6">
           {/* Error Icon */}
           <div className="flex justify-center">

@@ -117,7 +117,7 @@ export default function AnalyticsPage() {
   };
 
   return (
-    <NebulaBackground variant="admin" className="min-h-screen">
+    <NebulaBackground variant="dashboard" className="min-h-screen">
       <div className="flex">
         <AdminNavigation />
         

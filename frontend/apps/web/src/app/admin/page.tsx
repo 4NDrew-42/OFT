@@ -120,8 +120,8 @@ export default function AdminDashboard() {
 
   if (status === 'loading') {
     return (
-      <NebulaBackground variant="admin" className="min-h-screen flex items-center justify-center">
-        <GlassPanel variant="auth" className="p-8">
+      <NebulaBackground variant="dashboard" className="min-h-screen flex items-center justify-center">
+        <GlassPanel variant="card" className="p-8">
           <div className="flex items-center gap-3">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400"></div>
             <span className="text-white">Loading admin dashboard...</span>
@@ -133,8 +133,8 @@ export default function AdminDashboard() {
 
   if (status === 'unauthenticated') {
     return (
-      <NebulaBackground variant="auth" className="min-h-screen flex items-center justify-center">
-        <GlassPanel variant="auth" className="p-8 text-center">
+      <NebulaBackground variant="dashboard" className="min-h-screen flex items-center justify-center">
+        <GlassPanel variant="card" className="p-8 text-center">
           <Shield className="w-12 h-12 text-red-400 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-white mb-2">Authentication Required</h1>
           <p className="text-white/60">Please sign in to access the admin dashboard.</p>
@@ -144,7 +144,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <NebulaBackground variant="admin" className="min-h-screen">
+    <NebulaBackground variant="dashboard" className="min-h-screen">
       <div className="flex">
         {/* Admin Navigation Sidebar */}
         <AdminNavigation />
