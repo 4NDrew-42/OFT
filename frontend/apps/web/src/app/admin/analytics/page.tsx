@@ -61,18 +61,6 @@ export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState<'24h' | '7d' | '30d'>('24h');
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  useEffect(() => {
-    loadAnalytics();
-
-    if (autoRefresh) {
-      const interval = setInterval(loadAnalytics, 30000); // Refresh every 30 seconds
-      return () => clearInterval(interval);
-    }
-
-    // Return empty cleanup function when autoRefresh is false
-    return () => {};
-  }, [timeRange, autoRefresh, loadAnalytics]);
-
   const loadAnalytics = useCallback(async () => {
     try {
       setLoading(true);
@@ -90,6 +78,18 @@ export default function AnalyticsPage() {
       setLoading(false);
     }
   }, [timeRange]);
+
+  useEffect(() => {
+    loadAnalytics();
+
+    if (autoRefresh) {
+      const interval = setInterval(loadAnalytics, 30000); // Refresh every 30 seconds
+      return () => clearInterval(interval);
+    }
+
+    // Return empty cleanup function when autoRefresh is false
+    return () => {};
+  }, [timeRange, autoRefresh, loadAnalytics]);
 
   const handleExport = async (format: 'json' | 'csv') => {
     try {
