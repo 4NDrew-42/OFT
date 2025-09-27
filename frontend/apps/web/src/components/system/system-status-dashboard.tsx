@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Server, Cpu, HardDrive, Network, Zap, AlertTriangle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { GlassPanel, GlassButton, GlassCard, StatusIndicator } from '@/components/ui/glass-components';
 import { cn } from '@/lib/utils';
@@ -60,18 +60,7 @@ export const SystemStatusDashboard: React.FC = () => {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   const [error, setError] = useState<string | null>(null);
 
-  // Load real system status from ORION-CORE
-  useEffect(() => {
-    if (userEmail) {
-      loadSystemStatus();
-
-      // Auto-refresh every 30 seconds
-      const interval = setInterval(loadSystemStatus, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [userEmail]);
-
-  const loadSystemStatus = async () => {
+  const loadSystemStatus = useCallback(async () => {
     if (!userEmail) return;
 
     setIsRefreshing(true);
@@ -101,7 +90,18 @@ export const SystemStatusDashboard: React.FC = () => {
     } finally {
       setIsRefreshing(false);
     }
-  };
+  }, [userEmail]);
+
+  // Load real system status from ORION-CORE
+  useEffect(() => {
+    if (userEmail) {
+      loadSystemStatus();
+
+      // Auto-refresh every 30 seconds
+      const interval = setInterval(loadSystemStatus, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [userEmail, loadSystemStatus]);
 
   const refreshStatus = () => {
     if (!isRefreshing) {

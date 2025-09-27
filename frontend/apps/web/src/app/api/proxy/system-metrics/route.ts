@@ -106,7 +106,12 @@ async function checkNodeHealth(nodeName: string, baseUrl: string, token: string)
   }
 }
 
-function getNodeServices(nodeName: string, status: 'running' | 'error', latency: number) {
+function getNodeServices(nodeName: string, status: 'running' | 'error', latency: number): Array<{
+  name: string;
+  port: number;
+  status: 'running' | 'stopped' | 'error';
+  latency?: number;
+}> {
   const serviceMap: Record<string, Array<{name: string, port: number}>> = {
     'ORION-MEM': [
       { name: 'PostgreSQL', port: 5432 },
@@ -134,7 +139,7 @@ function getNodeServices(nodeName: string, status: 'running' | 'error', latency:
 
   return (serviceMap[nodeName] || []).map(service => ({
     ...service,
-    status: status === 'running' ? 'running' : 'error',
+    status: (status === 'running' ? 'running' : 'error') as 'running' | 'stopped' | 'error',
     latency: status === 'running' ? latency : undefined
   }));
 }
