@@ -63,6 +63,26 @@ const handler = NextAuth({
       // Log unauthorized access attempts for security monitoring
       console.warn(`Unauthorized sign-in attempt from email: ${user.email}`);
 
+      // Store access request for admin review
+      if (user.email) {
+        try {
+          await fetch(`${process.env.NEXTAUTH_URL}/api/admin/access-requests`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: user.email,
+              name: user.name || '',
+              provider: account?.provider || 'unknown',
+              timestamp: new Date().toISOString(),
+              userAgent: 'server-side', // Will be enhanced with actual user agent
+              ipAddress: 'server-side'   // Will be enhanced with actual IP
+            })
+          });
+        } catch (error) {
+          console.error('Failed to store access request:', error);
+        }
+      }
+
       // Deny access for non-allowed emails
       return false;
     },
