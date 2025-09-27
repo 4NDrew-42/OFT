@@ -190,7 +190,7 @@ export default function AdminDashboard() {
 
           {/* Error State */}
           {error && (
-            <GlassPanel variant="error" className="mb-6 p-4">
+            <GlassPanel variant="card" className="mb-6 p-4">
               <div className="flex items-center gap-3">
                 <AlertTriangle className="w-5 h-5 text-red-400" />
                 <div>
