@@ -1,13 +1,22 @@
 "use client";
 
 import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import { AlertTriangle, ArrowLeft, Shield } from 'lucide-react';
 import { GlassPanel, GlassButton, NebulaBackground } from '@/components/ui/glass-components';
 import Link from 'next/link';
 
 export default function AuthErrorPage() {
+  return (
+    <Suspense fallback={null}>
+      <AuthErrorContent />
+    </Suspense>
+  );
+}
+
+function AuthErrorContent() {
   const searchParams = useSearchParams();
-  const error = searchParams.get('error');
+  const error = searchParams?.get('error') ?? null;
 
   const getErrorMessage = (error: string | null) => {
     switch (error) {
@@ -74,20 +83,20 @@ export default function AuthErrorPage() {
           {/* Action Buttons */}
           <div className="space-y-3 pt-4">
             <Link href="/">
-              <GlassButton 
-                variant="primary" 
-                size="lg" 
+              <GlassButton
+                variant="primary"
+                size="lg"
                 className="w-full"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Return to Home
               </GlassButton>
             </Link>
-            
+
             <Link href="/">
-              <GlassButton 
-                variant="secondary" 
-                size="md" 
+              <GlassButton
+                variant="secondary"
+                size="md"
                 className="w-full"
               >
                 Try Different Account
@@ -105,7 +114,7 @@ export default function AuthErrorPage() {
                     Restricted Access
                   </h3>
                   <p className="text-amber-200/80 text-xs leading-relaxed">
-                    This application is currently in private beta and access is limited to authorized users only. 
+                    This application is currently in private beta and access is limited to authorized users only.
                     The system has logged this access attempt for security purposes.
                   </p>
                 </div>
