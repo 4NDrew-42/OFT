@@ -206,7 +206,7 @@ export async function sendAdminNotification(
     message,
     timestamp: new Date(),
     read: false,
-    actionUrl
+    ...(actionUrl && { actionUrl })
   };
 
   // TODO: Implement real-time notification system
