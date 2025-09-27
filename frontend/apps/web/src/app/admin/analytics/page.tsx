@@ -68,6 +68,9 @@ export default function AnalyticsPage() {
       const interval = setInterval(loadAnalytics, 30000); // Refresh every 30 seconds
       return () => clearInterval(interval);
     }
+
+    // Return empty cleanup function when autoRefresh is false
+    return () => {};
   }, [timeRange, autoRefresh, loadAnalytics]);
 
   const loadAnalytics = useCallback(async () => {
