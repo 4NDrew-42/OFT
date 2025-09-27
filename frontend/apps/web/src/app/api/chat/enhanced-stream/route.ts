@@ -293,16 +293,39 @@ export async function GET(req: NextRequest) {
           }
         ];
 
-        sendChunk(`🤖 Generating response with ${provider}...`);
+        sendChunk("🤖 Generating response via ORION backend...");
 
-        // Step 5: Stream response from chosen provider
-        if (provider === "gemini" && GEMINI_API_KEY) {
-          await streamGeminiResponse(messages, sendChunk);
-        } else if (provider === "deepseek" && DEEPSEEK_API_KEY) {
-          await streamDeepSeekResponse(messages, sendChunk);
-        } else {
-          sendChunk("❌ No AI provider configured or available");
-          sendChunk("[DONE]");
+        // Step 5: Delegate inference to ORION backend through our proxy (no provider keys needed)
+        const origin = url.origin;
+        const proxyUrl = new URL('/api/proxy/chat-stream', origin);
+        proxyUrl.searchParams.set('q', enhancedQuery);
+        proxyUrl.searchParams.set('sub', sub);
+
+        const upstream = await fetch(proxyUrl.toString(), {
+          method: 'GET',
+          headers: {
+            'Accept': 'text/event-stream',
+            'X-Request-Id': crypto.randomUUID(),
+          },
+        });
+
+        if (!upstream.ok || !upstream.body) {
+          const text = await upstream.text().catch(() => '');
+          sendChunk(`❌ Upstream error: ${upstream.status}${text ? ` - ${text.slice(0, 200)}` : ''}`);
+          sendChunk('[DONE]');
+          return;
+        }
+
+        // Pipe upstream SSE directly to client
+        const upstreamReader = upstream.body.getReader();
+        try {
+          while (true) {
+            const { done, value } = await upstreamReader.read();
+            if (done) break;
+            controller.enqueue(value);
+          }
+        } finally {
+          upstreamReader.releaseLock();
         }
 
       } catch (error) {
