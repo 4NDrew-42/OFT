@@ -205,12 +205,15 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
+    // Parse body first to use in audit parameters
+    const body = await req.json();
+    const { format = 'json', timeRange = '24h', includeRealTime = false } = body;
+
     return await withAdminAction(
       req,
       'EXPORT_ANALYTICS',
       async (adminEmail) => {
-        const body = await req.json();
-        const { format = 'json', timeRange = '24h', includeRealTime = false } = body;
+        // Body is already parsed above
 
         const analyticsData = generateAnalyticsData();
 
@@ -246,7 +249,7 @@ export async function POST(req: NextRequest) {
       },
       {
         rateLimit: { maxRequests: 10, windowMs: 300000 }, // 10 exports per 5 minutes
-        details: { format: body?.format, timeRange: body?.timeRange }
+        details: { format, timeRange }
       }
     );
   } catch (error) {
