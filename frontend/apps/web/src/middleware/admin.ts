@@ -8,9 +8,9 @@ import { isAdminEmail, logAdminAction } from '@/lib/auth-utils';
 export async function adminMiddleware(req: NextRequest): Promise<NextResponse> {
   try {
     // Get the JWT token from the request
-    const token = await getToken({ 
-      req, 
-      secret: process.env.NEXTAUTH_SECRET 
+    const token = await getToken({
+      req,
+      ...(process.env.NEXTAUTH_SECRET ? { secret: process.env.NEXTAUTH_SECRET } : {})
     });
 
     // Check if user is authenticated
@@ -76,9 +76,9 @@ export async function requireAdminAPI(req: NextRequest): Promise<{
   isValid: boolean;
 }> {
   try {
-    const token = await getToken({ 
-      req, 
-      secret: process.env.NEXTAUTH_SECRET 
+    const token = await getToken({
+      req,
+      ...(process.env.NEXTAUTH_SECRET ? { secret: process.env.NEXTAUTH_SECRET } : {})
     });
 
     if (!token || !token.email) {
