@@ -73,12 +73,13 @@ async function checkNodeHealth(nodeName: string, baseUrl: string, token: string)
       const healthData = await healthResponse.json();
       
       // Extract real metrics from health response
+      const hardware = getNodeHardware(nodeName);
       return {
         name: nodeName,
         status: 'online',
         uptime: healthData.uptime_seconds || 0,
         services: getNodeServices(nodeName, 'running', latency),
-        hardware: getNodeHardware(nodeName),
+        ...(hardware && { hardware }),
         metrics: {
           cpuUsage: Math.random() * 100, // TODO: Get real CPU usage
           memoryUsage: Math.random() * 100, // TODO: Get real memory usage
@@ -91,12 +92,13 @@ async function checkNodeHealth(nodeName: string, baseUrl: string, token: string)
   } catch (error) {
     console.warn(`Node ${nodeName} health check failed:`, error);
     
+    const hardware = getNodeHardware(nodeName);
     return {
       name: nodeName,
       status: 'error',
       uptime: 0,
       services: getNodeServices(nodeName, 'error', 0),
-      hardware: getNodeHardware(nodeName),
+      ...(hardware && { hardware }),
       metrics: {
         cpuUsage: 0,
         memoryUsage: 0,
@@ -144,14 +146,14 @@ function getNodeServices(nodeName: string, status: 'running' | 'error', latency:
   }));
 }
 
-function getNodeHardware(nodeName: string) {
+function getNodeHardware(nodeName: string): {cpu: string, memory: string, gpu?: string} | undefined {
   const hardwareMap: Record<string, {cpu: string, memory: string, gpu?: string}> = {
     'ORION-MEM': {
       cpu: 'Intel Xeon E5-2680 v4',
       memory: '64GB DDR4'
     },
     'ORION-ORACLE': {
-      cpu: 'AMD Ryzen 9 5950X', 
+      cpu: 'AMD Ryzen 9 5950X',
       memory: '32GB DDR4'
     },
     'ORION-PC': {
@@ -161,7 +163,7 @@ function getNodeHardware(nodeName: string) {
     },
     'ORIONLPC': {
       cpu: 'Intel Core i5-10400F',
-      memory: '16GB DDR4', 
+      memory: '16GB DDR4',
       gpu: 'RTX 2070 8GB'
     },
     'LEVIATHAN': {
@@ -170,7 +172,7 @@ function getNodeHardware(nodeName: string) {
     }
   };
 
-  return hardwareMap[nodeName];
+  return hardwareMap[nodeName] || undefined;
 }
 
 export async function GET(req: NextRequest) {
