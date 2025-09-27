@@ -51,11 +51,14 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (status === 'authenticated') {
       loadDashboardData();
-      
+
       // Set up real-time updates every 30 seconds
       const interval = setInterval(loadDashboardData, 30000);
       return () => clearInterval(interval);
     }
+
+    // Return empty cleanup function when not authenticated
+    return () => {};
   }, [status]);
 
   const loadDashboardData = async () => {
