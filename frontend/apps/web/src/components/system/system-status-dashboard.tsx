@@ -10,6 +10,7 @@ import React, { useState, useEffect } from 'react';
 import { Server, Cpu, HardDrive, Network, Zap, AlertTriangle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { GlassPanel, GlassButton, GlassCard, StatusIndicator } from '@/components/ui/glass-components';
 import { cn } from '@/lib/utils';
+import { useSession } from 'next-auth/react';
 
 // Types
 interface OrionNode {
@@ -50,32 +51,53 @@ interface SystemMetrics {
 
 // Main System Status Dashboard Component
 export const SystemStatusDashboard: React.FC = () => {
+  const { data: session } = useSession();
+  const userEmail = session?.user?.email;
+
   const [nodes, setNodes] = useState<OrionNode[]>([]);
   const [systemMetrics, setSystemMetrics] = useState<SystemMetrics | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [error, setError] = useState<string | null>(null);
 
-  // Initialize with mock data (replace with actual API calls)
+  // Load real system status from ORION-CORE
   useEffect(() => {
-    loadSystemStatus();
-    
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(loadSystemStatus, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    if (userEmail) {
+      loadSystemStatus();
+
+      // Auto-refresh every 30 seconds
+      const interval = setInterval(loadSystemStatus, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [userEmail]);
 
   const loadSystemStatus = async () => {
+    if (!userEmail) return;
+
     setIsRefreshing(true);
+    setError(null);
+
     try {
-      // TODO: Replace with actual API calls
-      const mockNodes = await getMockNodeStatus();
-      const mockMetrics = await getMockSystemMetrics();
-      
-      setNodes(mockNodes);
-      setSystemMetrics(mockMetrics);
+      const response = await fetch(`/api/proxy/system-metrics?sub=${encodeURIComponent(userEmail)}`, {
+        cache: 'no-store'
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      setNodes(data.nodes || []);
+      setSystemMetrics(data.systemMetrics || null);
       setLastUpdate(new Date());
     } catch (error) {
       console.error('Failed to load system status:', error);
+      setError(error instanceof Error ? error.message : 'Failed to load system status');
+
+      // Fallback to empty state on error
+      setNodes([]);
+      setSystemMetrics(null);
     } finally {
       setIsRefreshing(false);
     }
@@ -106,8 +128,49 @@ export const SystemStatusDashboard: React.FC = () => {
     }
   };
 
+  // Show authentication required message
+  if (!userEmail) {
+    return (
+      <div className="space-y-6">
+        <GlassPanel variant="nav" className="p-4">
+          <div className="flex items-center gap-2">
+            <Server className="w-6 h-6 text-blue-400" />
+            <h1 className="text-xl font-bold text-white">ORION-CORE System Status</h1>
+            <StatusIndicator status="warning" label="AUTH REQUIRED" />
+          </div>
+        </GlassPanel>
+
+        <GlassCard variant="elevated" className="text-center p-8">
+          <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-white mb-2">Authentication Required</h2>
+          <p className="text-white/60">Please sign in to view ORION-CORE system status and metrics.</p>
+        </GlassCard>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {/* Error Display */}
+      {error && (
+        <GlassCard variant="elevated" className="border-red-500/30 bg-red-500/10">
+          <div className="flex items-center gap-2 text-red-400">
+            <XCircle className="w-5 h-5" />
+            <span className="font-medium">System Status Error</span>
+          </div>
+          <p className="text-red-300 text-sm mt-2">{error}</p>
+          <GlassButton
+            onClick={loadSystemStatus}
+            disabled={isRefreshing}
+            size="sm"
+            variant="secondary"
+            className="mt-3"
+          >
+            <RefreshCw className={cn("w-4 h-4 mr-2", isRefreshing && "animate-spin")} />
+            Retry
+          </GlassButton>
+        </GlassCard>
+      )}
       {/* Header */}
       <GlassPanel variant="nav" className="p-4">
         <div className="flex justify-between items-center">
@@ -115,10 +178,16 @@ export const SystemStatusDashboard: React.FC = () => {
             <Server className="w-6 h-6 text-blue-400" />
             <h1 className="text-xl font-bold text-white">ORION-CORE System Status</h1>
             {systemMetrics && (
-              <StatusIndicator 
-                status={systemMetrics.systemHealth === 'healthy' ? 'online' : 
+              <StatusIndicator
+                status={systemMetrics.systemHealth === 'healthy' ? 'online' :
                        systemMetrics.systemHealth === 'degraded' ? 'warning' : 'error'}
                 label={systemMetrics.systemHealth.toUpperCase()}
+              />
+            )}
+            {error && (
+              <StatusIndicator
+                status="error"
+                label="API ERROR"
               />
             )}
           </div>
@@ -322,122 +391,6 @@ const NodeStatusCard: React.FC<NodeStatusCardProps> = ({ node }) => {
   );
 };
 
-// Mock data functions (replace with actual API calls)
-const getMockNodeStatus = async (): Promise<OrionNode[]> => {
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  return [
-    {
-      name: 'ORION-MEM',
-      status: 'online',
-      uptime: 608758,
-      hardware: {
-        cpu: 'Intel Xeon E5-2680 v4',
-        memory: '64GB DDR4',
-      },
-      metrics: {
-        cpuUsage: 23,
-        memoryUsage: 67,
-        networkLatency: 2
-      },
-      services: [
-        { name: 'PostgreSQL', port: 5432, status: 'running', latency: 1 },
-        { name: 'Qdrant', port: 6333, status: 'running', latency: 3 },
-        { name: 'Redis', port: 6379, status: 'running', latency: 1 },
-        { name: 'Vector Service', port: 8081, status: 'running', latency: 5 }
-      ]
-    },
-    {
-      name: 'ORION-ORACLE',
-      status: 'online',
-      uptime: 732345,
-      hardware: {
-        cpu: 'AMD Ryzen 9 5950X',
-        memory: '32GB DDR4',
-      },
-      metrics: {
-        cpuUsage: 45,
-        memoryUsage: 34,
-        networkLatency: 1
-      },
-      services: [
-        { name: 'Fabric Bridge', port: 8089, status: 'running', latency: 12 },
-        { name: 'Gate API', port: 8085, status: 'running', latency: 8 }
-      ]
-    },
-    {
-      name: 'ORION-PC',
-      status: 'online',
-      uptime: 456789,
-      hardware: {
-        cpu: 'Intel Core i7-12700K',
-        memory: '32GB DDR4',
-        gpu: 'RTX 3070 8GB'
-      },
-      metrics: {
-        cpuUsage: 78,
-        memoryUsage: 56,
-        networkLatency: 3
-      },
-      services: [
-        { name: 'vLLM', port: 8000, status: 'running', latency: 45 },
-        { name: 'Ollama', port: 11434, status: 'running', latency: 23 }
-      ]
-    },
-    {
-      name: 'ORIONLPC',
-      status: 'warning',
-      uptime: 234567,
-      hardware: {
-        cpu: 'Intel Core i5-10400F',
-        memory: '16GB DDR4',
-        gpu: 'RTX 2070 8GB'
-      },
-      metrics: {
-        cpuUsage: 89,
-        memoryUsage: 78,
-        networkLatency: 15
-      },
-      services: [
-        { name: 'Vision Service', port: 8090, status: 'running', latency: 67 },
-        { name: 'Embedding Service', port: 8091, status: 'running', latency: 34 }
-      ]
-    },
-    {
-      name: 'LEVIATHAN',
-      status: 'online',
-      uptime: 123456,
-      hardware: {
-        cpu: 'AMD Threadripper 3970X',
-        memory: '128GB DDR4',
-      },
-      metrics: {
-        cpuUsage: 12,
-        memoryUsage: 23,
-        networkLatency: 4
-      },
-      services: [
-        { name: 'Storage Service', port: 9000, status: 'running', latency: 6 },
-        { name: 'Backup Service', port: 9001, status: 'running', latency: 12 }
-      ]
-    }
-  ];
-};
-
-const getMockSystemMetrics = async (): Promise<SystemMetrics> => {
-  await new Promise(resolve => setTimeout(resolve, 300));
-  
-  return {
-    activeNodes: 5,
-    runningServices: 12,
-    totalUptime: 456789,
-    systemHealth: 'healthy',
-    aiMetrics: {
-      ragMemories: 245,
-      fabricPatterns: 8,
-      activeChats: 3
-    }
-  };
-};
+// Real-time system status now powered by ORION-CORE APIs
 
 export default SystemStatusDashboard;
