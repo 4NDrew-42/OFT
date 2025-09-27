@@ -48,8 +48,9 @@ function generateAnalyticsData(): AnalyticsData {
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const date = new Date(now);
     date.setDate(date.getDate() - i);
+    const dateString = date.toISOString().split('T')[0];
     return {
-      date: date.toISOString().split('T')[0],
+      date: dateString as string, // Type assertion since we know toISOString().split('T')[0] is always a string
       count: Math.floor(Math.random() * 50) + 10
     };
   }).reverse();
