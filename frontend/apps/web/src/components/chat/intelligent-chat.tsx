@@ -194,8 +194,8 @@ export const IntelligentChat: React.FC = () => {
               <span className="px-2 py-1 text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-full">
                 Gemini 2.5
               </span>
-              <StatusIndicator 
-                status={systemStatus} 
+              <StatusIndicator
+                status={systemStatus === 'connecting' ? 'loading' : systemStatus}
                 label={systemStatus === 'online' ? 'Connected' : systemStatus === 'connecting' ? 'Connecting' : 'Error'}
               />
             </div>
