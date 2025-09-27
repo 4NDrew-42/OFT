@@ -1,13 +1,14 @@
 "use client";
 
-import { 
-  Users, 
-  UserCheck, 
-  Activity, 
+import {
+  Users,
+  UserCheck,
+  Activity,
   Shield,
   TrendingUp,
   TrendingDown,
-  Minus
+  Minus,
+  type LucideIcon
 } from 'lucide-react';
 import { GlassPanel } from '@/components/ui/glass-components';
 
@@ -28,7 +29,7 @@ interface StatCardProps {
     type: 'increase' | 'decrease' | 'neutral';
     period: string;
   };
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   color: 'blue' | 'green' | 'yellow' | 'red' | 'purple';
   description?: string;
 }
