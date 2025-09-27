@@ -1,6 +1,6 @@
 import { withAuth } from "next-auth/middleware";
 import { NextRequest } from "next/server";
-import { adminMiddleware } from "./middleware/admin";
+import { adminMiddleware } from "./src/middleware/admin";
 
 export default withAuth(
   async function middleware(req: NextRequest) {

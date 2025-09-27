@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { 
   TrendingUp, 
   Users, 
@@ -63,19 +63,19 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     loadAnalytics();
-    
+
     if (autoRefresh) {
       const interval = setInterval(loadAnalytics, 30000); // Refresh every 30 seconds
       return () => clearInterval(interval);
     }
-  }, [timeRange, autoRefresh]);
+  }, [timeRange, autoRefresh, loadAnalytics]);
 
-  const loadAnalytics = async () => {
+  const loadAnalytics = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/admin/analytics?range=${timeRange}&realtime=true`);
       const data = await response.json();
-      
+
       if (data.success) {
         setAnalyticsData(data.data);
       } else {
@@ -86,7 +86,7 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange]);
 
   const handleExport = async (format: 'json' | 'csv') => {
     try {
