@@ -89,8 +89,8 @@ const handler = NextAuth({
     async jwt({ token, user }) {
       // Add user info to the token
       if (user) {
-        token.email = user.email;
-        token.name = user.name;
+        token.email = user.email || null;
+        token.name = user.name || null;
       }
       return token;
     },
