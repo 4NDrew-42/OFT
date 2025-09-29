@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   const sub = url.searchParams.get("sub");
   if (!q || !sub) {
     return new Response("missing q or sub", { status: 400 });
-    }
+  }
 
   let token: string;
   try {
@@ -20,26 +20,38 @@ export async function GET(req: Request) {
     return new Response("server_not_configured", { status: 500 });
   }
 
-  const upstreamUrl = new URL(CHAT_STREAM_URL);
-  upstreamUrl.searchParams.set("q", q);
-
   const reqId = req.headers.get("x-request-id") || (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
-  const upstream = await fetch(upstreamUrl.toString(), {
-    method: "GET",
+
+  // Enhanced Chat API expects POST with JSON body
+  const upstream = await fetch(CHAT_STREAM_URL, {
+    method: "POST",
     headers: {
-      Accept: "text/event-stream",
+      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
       "X-Request-Id": reqId,
     },
+    body: JSON.stringify({ message: q }),
   });
 
-  if (!upstream.ok || !upstream.body) {
+  if (!upstream.ok) {
     const text = await upstream.text();
     return new Response(text || "upstream_error", { status: upstream.status });
   }
 
-  // Pipe upstream SSE to client
-  return new Response(upstream.body, {
+  const jsonResponse = await upstream.json();
+
+  // Convert JSON response to SSE format for frontend compatibility
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      // Send the response as SSE data
+      controller.enqueue(encoder.encode(`data: ${jsonResponse.response || ""}\n\n`));
+      controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
     status: 200,
     headers: {
       "Content-Type": "text/event-stream",
