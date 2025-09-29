@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 // ORION-CORE service endpoints via Cloudflare tunnels
 const ORION_SERVICES = {
   'Vector Service': 'https://orion-vector.sidekickportal.com/health',
-  'Enhanced Chat': 'https://orion-chat.sidekickportal.com/api/chat',
+  'Enhanced Chat': 'https://orion-chat.sidekickportal.com/',
   'Fabric Bridge': 'https://fabric.sidekickportal.com/health'
 };
 
@@ -49,7 +49,21 @@ async function checkServiceHealth(serviceName: string, serviceUrl: string, token
     const latency = Date.now() - startTime;
 
     if (healthResponse.ok) {
-      const healthData = await healthResponse.json();
+      let healthData: any = {};
+
+      // Try to parse JSON, but handle HTML responses (like from Enhanced Chat)
+      try {
+        const contentType = healthResponse.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          healthData = await healthResponse.json();
+        } else {
+          // For HTML responses (like Enhanced Chat), just treat as healthy
+          healthData = { uptime_seconds: Date.now() / 1000 };
+        }
+      } catch (parseError) {
+        // If parsing fails, treat as healthy since the response was OK
+        healthData = { uptime_seconds: Date.now() / 1000 };
+      }
 
       return {
         name: serviceName,
