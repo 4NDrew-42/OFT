@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { NextRequest } from "next/server";
+import { buildOrionJWT } from "@/lib/auth-token";
 
 export const runtime = "nodejs";
 
@@ -21,24 +22,6 @@ interface ChatMessage {
   content: string;
 }
 
-function base64url(input: Buffer | string) {
-  const b = (typeof input === "string" ? Buffer.from(input) : input)
-    .toString("base64")
-    .replace(/=/g, "")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_");
-  return b;
-}
-
-function signHS256(payload: Record<string, any>, secret: string) {
-  const header = { alg: "HS256", typ: "JWT" };
-  const encodedHeader = base64url(JSON.stringify(header));
-  const encodedPayload = base64url(JSON.stringify(payload));
-  const data = `${encodedHeader}.${encodedPayload}`;
-  const sig = crypto.createHmac("sha256", secret).update(data).digest();
-  const encodedSig = base64url(sig);
-  return `${data}.${encodedSig}`;
-}
 
 async function searchOrionRAG(query: string, token: string): Promise<OrionSearchResult[]> {
   try {
@@ -241,17 +224,12 @@ export async function GET(req: NextRequest) {
   }
 
   // Generate JWT for ORION-CORE access
-  const iss = process.env.ORION_SHARED_JWT_ISS || "https://www.sidekickportal.com";
-  const aud = process.env.ORION_SHARED_JWT_AUD || "orion-core";
-  const secret = process.env.ORION_SHARED_JWT_SECRET;
-  
-  if (!secret) {
+  let token: string;
+  try {
+    token = buildOrionJWT(sub);
+  } catch (e) {
     return new Response("server_not_configured", { status: 500 });
   }
-
-  const now = Math.floor(Date.now() / 1000);
-  const exp = now + 60 * 5;
-  const token = signHS256({ iss, aud, sub, iat: now, exp }, secret);
 
   // Create a readable stream for SSE
   const stream = new ReadableStream({
@@ -311,7 +289,13 @@ export async function GET(req: NextRequest) {
 
         if (!upstream.ok || !upstream.body) {
           const text = await upstream.text().catch(() => '');
-          sendChunk(`❌ Upstream error: ${upstream.status}${text ? ` - ${text.slice(0, 200)}` : ''}`);
+          let pretty = text;
+          try {
+            const j = JSON.parse(text);
+            // common patterns: { error: "..." } or { message: "..." }
+            pretty = j.error || j.message || text;
+          } catch {}
+          sendChunk(`❌ Upstream error: ${upstream.status}${pretty ? ` - ${pretty.slice(0, 400)}` : ''}`);
           sendChunk('[DONE]');
           return;
         }
