@@ -34,6 +34,12 @@ export function useChatStream(sub: string) {
         stop();
         return;
       }
+
+      // Filter out loading/status messages for cleaner UX
+      if (e.data.startsWith("🔍") || e.data.startsWith("📚") || e.data.startsWith("🤖")) {
+        return;
+      }
+
       setBuffer((prev) => prev + e.data);
     };
     es.onerror = () => {

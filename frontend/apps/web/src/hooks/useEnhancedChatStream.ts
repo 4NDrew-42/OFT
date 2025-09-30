@@ -56,9 +56,9 @@ export function useEnhancedChatStream(sub: string, options: EnhancedChatOptions 
         return;
       }
 
-      // Handle special status messages
+      // Filter out loading/status messages - don't add them to buffer
       if (e.data.startsWith("🔍") || e.data.startsWith("📚") || e.data.startsWith("🤖")) {
-        setBuffer((prev) => prev + e.data + "\n");
+        // These are loading messages, ignore them for cleaner UX
         return;
       }
 
