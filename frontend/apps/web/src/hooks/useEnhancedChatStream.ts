@@ -26,10 +26,10 @@ export function useEnhancedChatStream(sub: string, options: EnhancedChatOptions 
   function getEnhancedChatUrl(query: string, sub: string, provider: ChatProvider): string {
     const params = new URLSearchParams({
       q: query,
-      sub: sub,
-      provider: provider
+      sub: sub
     });
-    return `/api/chat/enhanced-stream?${params.toString()}`;
+    // Bypass enhanced-stream and use proxy directly to avoid truncation issues
+    return `/api/proxy/chat-stream?${params.toString()}`;
   }
 
   async function start(q: string, customOptions?: EnhancedChatOptions) {
