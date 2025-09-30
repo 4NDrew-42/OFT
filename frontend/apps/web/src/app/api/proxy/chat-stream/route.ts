@@ -22,8 +22,8 @@ export async function GET(req: Request) {
 
   const reqId = req.headers.get("x-request-id") || (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
 
-  // Use correct Enhanced Chat endpoint
-  const ENHANCED_CHAT_URL = 'http://192.168.50.79:3002/enhanced-chat';
+  // Use production Cloudflare tunnel endpoint for ORION-CORE Enhanced Chat
+  const ENHANCED_CHAT_URL = 'https://orion-chat.sidekickportal.com/api/chat-enhanced';
 
   const upstream = await fetch(ENHANCED_CHAT_URL, {
     method: "POST",
@@ -32,7 +32,13 @@ export async function GET(req: Request) {
       Authorization: `Bearer ${token}`,
       "X-Request-Id": reqId,
     },
-    body: JSON.stringify({ message: q }),
+    body: JSON.stringify({ 
+      message: q,
+      sessionId: `web_${sub}_${Date.now()}`,
+      userId: sub,
+      useRAG: true,
+      model: 'deepseek-chat'
+    }),
   });
 
   if (!upstream.ok) {
@@ -63,4 +69,3 @@ export async function GET(req: Request) {
     },
   });
 }
-
