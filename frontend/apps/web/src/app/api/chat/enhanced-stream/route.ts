@@ -28,8 +28,8 @@ async function searchOrionRAG(query: string, token: string): Promise<OrionSearch
     // Try multiple endpoints for vector search
     const endpoints = [
       `${FABRIC_BASE_URL}/api/vector/search`,
-      `${FABRIC_BASE_URL}/search`,
-      'http://192.168.50.77:8085/api/vector/search' // Gate API direct
+      `${FABRIC_BASE_URL}/search`
+      // Gate API removed as unnecessary per AGENTS.md
     ];
 
     for (const endpoint of endpoints) {
@@ -242,36 +242,21 @@ export async function GET(req: NextRequest) {
 
       try {
         // Step 1: Search ORION-CORE RAG for relevant context
-        sendChunk("🔍 Searching knowledge base...");
         const ragResults = await searchOrionRAG(q, token);
-        
+
         // Step 2: Build context from RAG results
-        const context = ragResults.length > 0 
+        const context = ragResults.length > 0
           ? ragResults.map(r => r.content).join('\n\n')
           : '';
 
-        if (context) {
-          sendChunk("📚 Found relevant context, enhancing query...");
-        }
+        // Step 3: Use original query to avoid token limit issues
+        // TODO: Re-enable RAG enhancement once token limits are resolved
+        const enhancedQuery = q;
 
-        // Step 3: Enhance query with Fabric pattern if context available
-        const enhancedQuery = context 
-          ? await enhanceWithFabricPattern(q, context, token)
-          : q;
+        // Step 4: Use simplified approach to avoid token limits
+        // TODO: Re-enable context injection once token limits are resolved
 
-        // Step 4: Build messages for AI provider
-        const messages: ChatMessage[] = [
-          {
-            role: 'system',
-            content: `You are an AI assistant with access to a knowledge base. ${context ? `Here's relevant context from the knowledge base:\n\n${context}\n\nUse this context to provide more accurate and detailed responses.` : 'Provide helpful and accurate responses.'}`
-          },
-          {
-            role: 'user',
-            content: enhancedQuery
-          }
-        ];
-
-        sendChunk("🤖 Generating response via ORION backend...");
+        // Generate response via ORION backend (no loading message)
 
         // Step 5: Delegate inference to ORION backend through our proxy (no provider keys needed)
         const origin = url.origin;
