@@ -22,8 +22,10 @@ export async function GET(req: Request) {
 
   const reqId = req.headers.get("x-request-id") || (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
 
-  // Enhanced Chat API expects POST with JSON body
-  const upstream = await fetch(CHAT_STREAM_URL, {
+  // Use correct Enhanced Chat endpoint
+  const ENHANCED_CHAT_URL = 'http://192.168.50.79:3002/enhanced-chat';
+
+  const upstream = await fetch(ENHANCED_CHAT_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -35,17 +37,18 @@ export async function GET(req: Request) {
 
   if (!upstream.ok) {
     const text = await upstream.text();
-    return new Response(text || "upstream_error", { status: upstream.status });
+    return new Response(text || "enhanced_chat_error", { status: upstream.status });
   }
 
   const jsonResponse = await upstream.json();
+  const responseContent = jsonResponse.response || "No response generated";
 
-  // Convert JSON response to SSE format for frontend compatibility
+  // Convert to SSE format for frontend compatibility
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     start(controller) {
       // Send the response as SSE data
-      controller.enqueue(encoder.encode(`data: ${jsonResponse.response || ""}\n\n`));
+      controller.enqueue(encoder.encode(`data: ${responseContent}\n\n`));
       controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
       controller.close();
     },
