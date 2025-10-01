@@ -137,6 +137,28 @@ export const IntelligentChat: React.FC = () => {
     const messageContent = inputValue.trim();
     setInputValue('');
 
+    // Save message to backend session
+    const currentSessionId = getCurrentSessionId();
+    if (currentSessionId && userEmail) {
+      try {
+        await saveMessage(currentSessionId, 'user', messageContent);
+        console.log('User message saved to session:', currentSessionId);
+      } catch (error) {
+        console.error('Failed to save user message:', error);
+      }
+    } else if (userEmail) {
+      // Create new session with first message
+      try {
+        const userId = getUserId();
+        const newSession = await createSession(userId, messageContent);
+        setCurrentSessionId(newSession.sessionId);
+        console.log('Created new session with first message:', newSession.sessionId);
+        await loadSessionHistory();
+      } catch (error) {
+        console.error('Failed to create session:', error);
+      }
+    }
+
     // Clear previous buffer and start streaming
     clearBuffer();
 
@@ -156,7 +178,10 @@ export const IntelligentChat: React.FC = () => {
 
   // Handle streaming response
   useEffect(() => {
-    if (buffer && !isStreaming) {
+    const saveAssistantMessage = async () => {
+      if (!buffer || isStreaming) return;
+      
+
       // Stream completed, add the full response as a message
       const assistantMessage: ChatMessage = {
         id: `msg_${Date.now()}`,
@@ -175,9 +200,28 @@ export const IntelligentChat: React.FC = () => {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // Save assistant message to backend session
+      const currentSessionId = getCurrentSessionId();
+      if (currentSessionId && userEmail) {
+        try {
+          await saveMessage(currentSessionId, 'assistant', buffer, {
+            tokens: buffer.length,
+            provider: streamProvider
+          });
+          console.log('Assistant message saved to session:', currentSessionId);
+          // Refresh session history to update message count
+          await loadSessionHistory();
+        } catch (error) {
+          console.error('Failed to save assistant message:', error);
+        }
+      }
+      
       clearBuffer();
-    }
-  }, [buffer, isStreaming, streamProvider, clearBuffer]);
+    };
+    
+    saveAssistantMessage();
+  }, [buffer, isStreaming, streamProvider, clearBuffer, userEmail]);
 
   // Provider switching functionality
   const handleProviderSwitch = (provider: ChatProvider) => {
@@ -228,7 +272,9 @@ export const IntelligentChat: React.FC = () => {
   // Load messages from a specific session
   const loadSessionMessages = async (sessionId: string) => {
     try {
+      console.log('Loading messages for session:', sessionId);
       const msgs = await getSessionMessages(sessionId);
+      console.log('Loaded messages:', msgs.length);
       if (msgs.length > 0) {
         setMessages(msgs.map(m => ({
           id: m.id,
@@ -237,6 +283,9 @@ export const IntelligentChat: React.FC = () => {
           timestamp: new Date(m.timestamp).getTime(),
           ...(m.metadata && { metadata: m.metadata as any })
         })));
+      } else {
+        // Clear messages if session has no messages
+        setMessages([]);
       }
     } catch (error) {
       console.error('Failed to load session messages:', error);
@@ -245,6 +294,7 @@ export const IntelligentChat: React.FC = () => {
 
   // Switch to a different session
   const handleLoadSession = async (sessionId: string) => {
+    console.log('Switching to session:', sessionId);
     setCurrentSessionId(sessionId);
     await loadSessionMessages(sessionId);
     setShowSessionHistory(false);
@@ -323,7 +373,7 @@ export const IntelligentChat: React.FC = () => {
                 </GlassButton>
 
                 {showSessionHistory && (
-                  <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-gray-900/98 backdrop-blur-sm border border-blue-500/30 rounded-lg shadow-2xl z-50 max-h-96 overflow-hidden">
+                  <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-gray-900/95 backdrop-blur-md border border-blue-500/40 rounded-lg shadow-2xl z-50 max-h-96 overflow-hidden">
                     <div className="p-3 border-b border-blue-500/20 flex justify-between items-center">
                       <h3 className="font-semibold text-white text-sm">Chat History</h3>
                       <GlassButton
