@@ -33,29 +33,32 @@
     "setup": "npm run setup:frontend && npm run setup:backend",
     "setup:frontend": "cd frontend && npm install",
     "setup:backend": "cd backend/api-gateway && npm install && cd ../ai-service && npm install && cd ../websocket-service && npm install",
+
     "orion-dev": "node scripts/orion-dev-tools.js",
     "orion:init": "node scripts/orion-dev-tools.js init",
     "orion:search": "node scripts/orion-dev-tools.js search",
     "orion:analytics": "node scripts/orion-dev-tools.js analytics",
     "orion:health-dev": "node scripts/orion-dev-tools.js health",
+
     "store:arch": "node scripts/orion-dev-tools.js arch-decision",
     "store:pattern": "node scripts/orion-dev-tools.js code-pattern",
     "store:integration": "node scripts/orion-dev-tools.js orion-integration",
     "store:feature": "node scripts/orion-dev-tools.js feature",
+
     "docs:generate": "concurrently \"npm run docs:api\" \"npm run docs:mermaid\"",
     "docs:api": "swagger-jsdoc -d docs/api/swagger.json backend/*/routes/*.js",
     "docs:mermaid": "mmdc -i docs/diagrams/architecture/*.mmd -o docs/diagrams/architecture/",
     "docs:validate": "markdownlint docs/**/*.md"
   },
   "devDependencies": {
-    "@mermaid-js/mermaid-cli": "^10.6.1",
-    "@types/node": "^20.10.5",
-    "axios": "^1.6.5",
-    "commander": "^11.1.0",
     "concurrently": "^8.2.2",
-    "markdownlint-cli": "^0.38.0",
+    "@types/node": "^20.10.5",
+    "typescript": "^5.3.3",
+    "commander": "^11.1.0",
+    "axios": "^1.6.5",
     "swagger-jsdoc": "^6.2.8",
-    "typescript": "^5.3.3"
+    "@mermaid-js/mermaid-cli": "^10.6.1",
+    "markdownlint-cli": "^0.38.0"
   },
   "engines": {
     "node": ">=18.0.0",
@@ -96,8 +99,5 @@
         "npm run store:pattern"
       ]
     }
-  },
-  "dependencies": {
-    "redis": "^5.8.2"
   }
 }
