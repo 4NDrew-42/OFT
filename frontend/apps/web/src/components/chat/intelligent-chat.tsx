@@ -178,50 +178,44 @@ export const IntelligentChat: React.FC = () => {
 
   // Handle streaming response
   useEffect(() => {
-    const saveAssistantMessage = async () => {
-      if (!buffer || isStreaming) return;
-      
-
-      // Stream completed, add the full response as a message
-      const assistantMessage: ChatMessage = {
-        id: `msg_${Date.now()}`,
-        type: 'assistant',
-        content: buffer,
-        timestamp: Date.now(),
-        // TODO: Parse sources and metadata from buffer if available
-        sources: [],
-        metadata: {
-          tokens: buffer.length,
-          confidence: 0.9,
-          processingTime: 1.0,
-          ragMemoriesUsed: 0,
-          provider: streamProvider
-        }
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-      
-      // Save assistant message to backend session
-      const currentSessionId = getCurrentSessionId();
-      if (currentSessionId && userEmail) {
-        try {
-          await saveMessage(currentSessionId, 'assistant', buffer, {
-            tokens: buffer.length,
-            provider: streamProvider
-          });
-          console.log('Assistant message saved to session:', currentSessionId);
-          // Refresh session history to update message count
-          await loadSessionHistory();
-        } catch (error) {
-          console.error('Failed to save assistant message:', error);
-        }
-      }
-      
-      clearBuffer();
-    };
+    if (!buffer || isStreaming) return;
     
-    saveAssistantMessage();
-  }, [buffer, isStreaming, streamProvider, clearBuffer, userEmail]);
+    // Stream completed, add the full response as a message
+    const assistantMessage: ChatMessage = {
+      id: `msg_${Date.now()}`,
+      type: 'assistant',
+      content: buffer,
+      timestamp: Date.now(),
+      // TODO: Parse sources and metadata from buffer if available
+      sources: [],
+      metadata: {
+        tokens: buffer.length,
+        confidence: 0.9,
+        processingTime: 1.0,
+        ragMemoriesUsed: 0,
+        provider: streamProvider
+      }
+    };
+
+    setMessages(prev => [...prev, assistantMessage]);
+    
+    // Save assistant message to backend session (async, don't await)
+    const currentSessionId = getCurrentSessionId();
+    if (currentSessionId && userEmail) {
+      saveMessage(currentSessionId, 'assistant', buffer, {
+        tokens: buffer.length,
+        provider: streamProvider
+      }).then(() => {
+        console.log('Assistant message saved to session:', currentSessionId);
+        // Refresh session history in background (don't await to avoid re-renders)
+        loadSessionHistory().catch(err => console.error('Failed to refresh history:', err));
+      }).catch(error => {
+        console.error('Failed to save assistant message:', error);
+      });
+    }
+    
+    clearBuffer();
+  }, [buffer, isStreaming, streamProvider]);
 
   // Provider switching functionality
   const handleProviderSwitch = (provider: ChatProvider) => {
