@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Brain, Database, Cpu, Zap, Clock, Sparkles, History, Trash2, Copy, Check, ChevronDown, Plus } from 'lucide-react';
 import { GlassPanel, GlassButton, GlassInput, GlassCard, StatusIndicator, NebulaBackground } from '@/components/ui/glass-components';
 import { cn } from '@/lib/utils';
@@ -214,7 +214,7 @@ export const IntelligentChat: React.FC = () => {
   // ============================================================================
 
   // Load session history from backend
-  const loadSessionHistory = async () => {
+  const loadSessionHistory = useCallback(async () => {
     if (!userEmail) return;
     try {
       const userId = getUserId();
@@ -223,7 +223,7 @@ export const IntelligentChat: React.FC = () => {
     } catch (error) {
       console.error('Failed to load session history:', error);
     }
-  };
+  }, [userEmail]);
 
   // Load messages from a specific session
   const loadSessionMessages = async (sessionId: string) => {
@@ -235,7 +235,7 @@ export const IntelligentChat: React.FC = () => {
           type: m.role,
           content: m.content,
           timestamp: new Date(m.timestamp).getTime(),
-          metadata: m.metadata
+          ...(m.metadata && { metadata: m.metadata as any })
         })));
       }
     } catch (error) {
@@ -278,7 +278,7 @@ export const IntelligentChat: React.FC = () => {
     if (userEmail) {
       loadSessionHistory();
     }
-  }, [userEmail]);
+  }, [userEmail, loadSessionHistory]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
