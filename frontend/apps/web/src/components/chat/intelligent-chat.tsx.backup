@@ -12,7 +12,7 @@ import { GlassPanel, GlassButton, GlassInput, GlassCard, StatusIndicator, Nebula
 import { cn } from '@/lib/utils';
 import { useEnhancedChatStream } from '@/hooks/useEnhancedChatStream';
 import { useSession } from 'next-auth/react';
-import { getUserSessions, getSessionMessages, saveMessage, createSession, setCurrentSessionId, getCurrentSessionId, getUserId, clearCurrentSession, type ChatSession as SessionType } from '@/lib/session/client';
+import { getUserSessions, getSessionMessages, saveMessage, createSession, setCurrentSessionId, getCurrentSessionId, getUserId, clearCurrentSession, deleteSession, type ChatSession as SessionType } from '@/lib/session/client';
 
 // Types
 interface ChatMessage {
@@ -137,11 +137,41 @@ export const IntelligentChat: React.FC = () => {
     const messageContent = inputValue.trim();
     setInputValue('');
 
+    // Save message to backend session
+    const currentSessionId = getCurrentSessionId();
+    if (currentSessionId && userEmail) {
+      try {
+        await saveMessage(currentSessionId, 'user', messageContent);
+        console.log('User message saved to session:', currentSessionId);
+      } catch (error) {
+        console.error('Failed to save user message:', error);
+      }
+    } else if (userEmail) {
+      // Create new session with first message
+      try {
+        const userId = getUserId();
+        const newSession = await createSession(userId, messageContent);
+        setCurrentSessionId(newSession.sessionId);
+        console.log('Created new session with first message:', newSession.sessionId);
+        await loadSessionHistory();
+      } catch (error) {
+        console.error('Failed to create session:', error);
+      }
+    }
+
     // Clear previous buffer and start streaming
     clearBuffer();
 
     try {
-      await startStream(messageContent, { provider: currentProvider });
+      // Pass last 10 messages as conversation history for context
+      const recentMessages = messages.slice(-10).map(m => ({
+        role: m.type,
+        content: m.content
+      }));
+      await startStream(messageContent, { 
+        provider: currentProvider,
+        conversationHistory: recentMessages
+      });
     } catch (error) {
       console.error('Chat error:', error);
       const errorMessage: ChatMessage = {
@@ -156,28 +186,44 @@ export const IntelligentChat: React.FC = () => {
 
   // Handle streaming response
   useEffect(() => {
-    if (buffer && !isStreaming) {
-      // Stream completed, add the full response as a message
-      const assistantMessage: ChatMessage = {
-        id: `msg_${Date.now()}`,
-        type: 'assistant',
-        content: buffer,
-        timestamp: Date.now(),
-        // TODO: Parse sources and metadata from buffer if available
-        sources: [],
-        metadata: {
-          tokens: buffer.length,
-          confidence: 0.9,
-          processingTime: 1.0,
-          ragMemoriesUsed: 0,
-          provider: streamProvider
-        }
-      };
+    if (!buffer || isStreaming) return;
+    
+    // Stream completed, add the full response as a message
+    const assistantMessage: ChatMessage = {
+      id: `msg_${Date.now()}`,
+      type: 'assistant',
+      content: buffer,
+      timestamp: Date.now(),
+      // TODO: Parse sources and metadata from buffer if available
+      sources: [],
+      metadata: {
+        tokens: buffer.length,
+        confidence: 0.9,
+        processingTime: 1.0,
+        ragMemoriesUsed: 0,
+        provider: streamProvider
+      }
+    };
 
-      setMessages(prev => [...prev, assistantMessage]);
-      clearBuffer();
+    setMessages(prev => [...prev, assistantMessage]);
+    
+    // Save assistant message to backend session (async, don't await)
+    const currentSessionId = getCurrentSessionId();
+    if (currentSessionId && userEmail) {
+      saveMessage(currentSessionId, 'assistant', buffer, {
+        tokens: buffer.length,
+        provider: streamProvider
+      }).then(() => {
+        console.log('Assistant message saved to session:', currentSessionId);
+        // Refresh session history in background (don't await to avoid re-renders)
+        loadSessionHistory().catch(err => console.error('Failed to refresh history:', err));
+      }).catch(error => {
+        console.error('Failed to save assistant message:', error);
+      });
     }
-  }, [buffer, isStreaming, streamProvider, clearBuffer]);
+    
+    clearBuffer();
+  }, [buffer, isStreaming, streamProvider]);
 
   // Provider switching functionality
   const handleProviderSwitch = (provider: ChatProvider) => {
@@ -228,7 +274,9 @@ export const IntelligentChat: React.FC = () => {
   // Load messages from a specific session
   const loadSessionMessages = async (sessionId: string) => {
     try {
+      console.log('Loading messages for session:', sessionId);
       const msgs = await getSessionMessages(sessionId);
+      console.log('Loaded messages:', msgs.length);
       if (msgs.length > 0) {
         setMessages(msgs.map(m => ({
           id: m.id,
@@ -237,6 +285,9 @@ export const IntelligentChat: React.FC = () => {
           timestamp: new Date(m.timestamp).getTime(),
           ...(m.metadata && { metadata: m.metadata as any })
         })));
+      } else {
+        // Clear messages if session has no messages
+        setMessages([]);
       }
     } catch (error) {
       console.error('Failed to load session messages:', error);
@@ -245,9 +296,40 @@ export const IntelligentChat: React.FC = () => {
 
   // Switch to a different session
   const handleLoadSession = async (sessionId: string) => {
+    console.log('Switching to session:', sessionId);
     setCurrentSessionId(sessionId);
     await loadSessionMessages(sessionId);
     setShowSessionHistory(false);
+  };
+
+  // Delete a session with confirmation
+  const handleDeleteSession = async (sessionId: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent triggering handleLoadSession
+    
+    if (!confirm('Delete this conversation? This cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      await deleteSession(sessionId);
+      console.log('Session deleted:', sessionId);
+      
+      // Remove from local state
+      setSessionHistory(prev => prev.filter(s => s.sessionId !== sessionId));
+      
+      // If deleted session was current, create new session
+      if (sessionId === getCurrentSessionId()) {
+        clearCurrentSession();
+        setMessages([]);
+        if (userEmail) {
+          // Don't create session immediately, wait for first message
+          console.log('Deleted current session, cleared messages');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+      alert('Failed to delete session. Please try again.');
+    }
   };
 
   // Create new session via backend
@@ -323,7 +405,7 @@ export const IntelligentChat: React.FC = () => {
                 </GlassButton>
 
                 {showSessionHistory && (
-                  <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-gray-900/98 backdrop-blur-sm border border-blue-500/30 rounded-lg shadow-2xl z-50 max-h-96 overflow-hidden">
+                  <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-gray-900/95 backdrop-blur-md border border-blue-500/40 rounded-lg shadow-2xl z-50 max-h-96 overflow-hidden">
                     <div className="p-3 border-b border-blue-500/20 flex justify-between items-center">
                       <h3 className="font-semibold text-white text-sm">Chat History</h3>
                       <GlassButton
@@ -343,20 +425,31 @@ export const IntelligentChat: React.FC = () => {
                         </div>
                       ) : (
                         sessionHistory.map((sess) => (
-                          <button
+                          <div
                             key={sess.sessionId}
-                            onClick={() => handleLoadSession(sess.sessionId)}
-                            className={`w-full text-left p-3 border-b border-gray-800/50 hover:bg-blue-500/10 transition-colors ${
+                            className={`relative group border-b border-gray-800/50 hover:bg-blue-500/10 transition-colors ${
                               sess.sessionId === getCurrentSessionId() ? 'bg-blue-500/20' : ''
                             }`}
                           >
-                            <div className="font-medium text-white text-sm truncate">{sess.title || 'Untitled Chat'}</div>
-                            <div className="text-xs text-gray-300 truncate mt-1">{sess.lastMessage || sess.firstMessage}</div>
-                            <div className="text-xs text-gray-500 mt-1 flex justify-between">
-                              <span>{sess.messageCount} messages</span>
-                              <span>{new Date(sess.updatedAt).toLocaleDateString()}</span>
-                            </div>
-                          </button>
+                            <button
+                              onClick={() => handleLoadSession(sess.sessionId)}
+                              className="w-full text-left p-3 pr-10"
+                            >
+                              <div className="font-medium text-white text-sm truncate">{sess.title || 'Untitled Chat'}</div>
+                              <div className="text-xs text-gray-300 truncate mt-1">{sess.lastMessage || sess.firstMessage}</div>
+                              <div className="text-xs text-gray-500 mt-1 flex justify-between">
+                                <span>{sess.messageCount} messages</span>
+                                <span>{new Date(sess.updatedAt).toLocaleDateString()}</span>
+                              </div>
+                            </button>
+                            <button
+                              onClick={(e) => handleDeleteSession(sess.sessionId, e)}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Delete conversation"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         ))
                       )}
                     </div>

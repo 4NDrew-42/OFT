@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { useEnhancedChatStream } from '@/hooks/useEnhancedChatStream';
 import { useSession } from 'next-auth/react';
 import { getUserSessions, getSessionMessages, saveMessage, createSession, setCurrentSessionId, getCurrentSessionId, getUserId, clearCurrentSession, deleteSession, type ChatSession as SessionType } from '@/lib/session/client';
+import { parseTemporalQuery, extractTemporalContext } from '@/lib/temporal/parser';
 
 // Types
 interface ChatMessage {
@@ -126,22 +127,79 @@ export const IntelligentChat: React.FC = () => {
   const sendMessage = async () => {
     if (!inputValue.trim() || isStreaming || !userEmail) return;
 
+    const messageContent = inputValue.trim();
+    
+    // Extract temporal context from query
+    const { temporal, cleanedQuery } = extractTemporalContext(messageContent);
+    let contextPrefix = "";
+    let enhancedMessage = messageContent;
+    
+    // If temporal query detected with high confidence, fetch relevant sessions
+    if (temporal && temporal.confidence >= 0.7) {
+      try {
+        const userId = getUserId();
+        const sessions = await getUserSessions(userId, {
+          startDate: temporal.startDate,
+          endDate: temporal.endDate,
+          limit: 20,
+          sortBy: 'createdAt',
+          sortOrder: 'desc'
+        });
+        
+        if (sessions.length > 0) {
+          // Build context from sessions
+          const sessionSummaries = sessions.map(s => {
+            const date = new Date(s.createdAt).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric'
+            });
+            const title = s.title || (s.firstMessage ? s.firstMessage.substring(0, 50) : 'Untitled');
+            return `- "${title}" (${s.messageCount} messages, ${date})`;
+          }).join('\n');
+          
+          contextPrefix = `Based on our conversation history from ${temporal.description}, here is what we discussed:\n\n${sessionSummaries}\n\nNow, regarding your question: `;
+          enhancedMessage = contextPrefix + cleanedQuery;
+          
+          console.log(`✅ Temporal query detected: ${temporal.description}`, {
+            sessionsFound: sessions.length,
+            dateRange: { start: temporal.startDate, end: temporal.endDate }
+          });
+        } else {
+          contextPrefix = `I do not have any conversation history from ${temporal.description}. `;
+          enhancedMessage = contextPrefix + cleanedQuery;
+          
+          console.log(`ℹ️ Temporal query detected but no sessions found: ${temporal.description}`);
+        }
+      } catch (error) {
+        console.error('Error fetching temporal sessions:', error);
+        // Fall back to original message on error
+        enhancedMessage = messageContent;
+      }
+    }
+
     const userMessage: ChatMessage = {
       id: `msg_${Date.now()}`,
       type: 'user',
-      content: inputValue.trim(),
+      content: messageContent, // Show original message to user
       timestamp: Date.now()
     };
 
     setMessages(prev => [...prev, userMessage]);
-    const messageContent = inputValue.trim();
     setInputValue('');
 
     // Save message to backend session
     const currentSessionId = getCurrentSessionId();
     if (currentSessionId && userEmail) {
       try {
-        await saveMessage(currentSessionId, 'user', messageContent);
+        await saveMessage(currentSessionId, 'user', messageContent, {
+          temporalContext: temporal ? {
+            description: temporal.description,
+            startDate: temporal.startDate.toISOString(),
+            endDate: temporal.endDate.toISOString(),
+            confidence: temporal.confidence
+          } : undefined
+        });
         console.log('User message saved to session:', currentSessionId);
       } catch (error) {
         console.error('Failed to save user message:', error);
@@ -168,7 +226,9 @@ export const IntelligentChat: React.FC = () => {
         role: m.type,
         content: m.content
       }));
-      await startStream(messageContent, { 
+      
+      // Use enhanced message (with temporal context) for streaming
+      await startStream(enhancedMessage, { 
         provider: currentProvider,
         conversationHistory: recentMessages
       });
@@ -183,6 +243,8 @@ export const IntelligentChat: React.FC = () => {
       setMessages(prev => [...prev, errorMessage]);
     }
   };
+
+
 
   // Handle streaming response
   useEffect(() => {

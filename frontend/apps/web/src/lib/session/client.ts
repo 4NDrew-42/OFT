@@ -29,6 +29,23 @@ export interface ChatMessage {
   metadata?: Record<string, any>;
 }
 
+/**
+ * Options for filtering sessions by date range
+ */
+export interface SessionFilterOptions {
+  /** Start date of the range (inclusive) */
+  startDate?: Date;
+  /** End date of the range (inclusive) */
+  endDate?: Date;
+  /** Maximum number of sessions to return */
+  limit?: number;
+  /** Field to sort by */
+  sortBy?: 'createdAt' | 'updatedAt';
+  /** Sort order */
+  sortOrder?: 'asc' | 'desc';
+}
+
+
 // Backend API base URL
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_SESSION_API || 'https://orion-chat.sidekickportal.com';
 
@@ -55,11 +72,51 @@ export async function createSession(userId: string, firstMessage?: string): Prom
 }
 
 /**
- * Get all sessions for a user
+ * Get all sessions for a user with optional date filtering
+ * 
+ * @param userId - The user ID to fetch sessions for
+ * @param options - Optional filtering and sorting options
+ * @returns Array of chat sessions matching the criteria
+ * 
+ * @example
+ * ```typescript
+ * // Get all sessions
+ * const sessions = await getUserSessions('user123');
+ * 
+ * // Get sessions from yesterday
+ * const yesterday = subDays(new Date(), 1);
+ * const sessions = await getUserSessions('user123', {
+ *   startDate: startOfDay(yesterday),
+ *   endDate: endOfDay(yesterday),
+ *   limit: 20
+ * });
+ * ```
  */
-export async function getUserSessions(userId: string): Promise<ChatSession[]> {
+export async function getUserSessions(
+  userId: string,
+  options?: SessionFilterOptions
+): Promise<ChatSession[]> {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/api/sessions/list?userId=${encodeURIComponent(userId)}`);
+    const params = new URLSearchParams({ userId: encodeURIComponent(userId) });
+    
+    // Add optional date filtering parameters
+    if (options?.startDate) {
+      params.set('startDate', options.startDate.toISOString());
+    }
+    if (options?.endDate) {
+      params.set('endDate', options.endDate.toISOString());
+    }
+    if (options?.limit) {
+      params.set('limit', options.limit.toString());
+    }
+    if (options?.sortBy) {
+      params.set('sortBy', options.sortBy);
+    }
+    if (options?.sortOrder) {
+      params.set('sortOrder', options.sortOrder);
+    }
+    
+    const response = await fetch(`${BACKEND_API_URL}/api/sessions/list?${params.toString()}`);
 
     if (!response.ok) {
       throw new Error(`Failed to get sessions: ${response.statusText}`);
