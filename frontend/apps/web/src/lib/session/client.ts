@@ -4,7 +4,7 @@
  * This client makes HTTP fetch() calls to the ORION-CORE backend API.
  * NO direct Redis or database connections - backend handles all persistence.
  * 
- * Backend: http://192.168.50.79:3002 (ORION-CORE web-portal)
+ * Backend: https://orion-chat.sidekickportal.com (ORION-CORE web-portal)
  */
 
 // Types
@@ -30,7 +30,7 @@ export interface ChatMessage {
 }
 
 // Backend API base URL
-const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_SESSION_API || 'http://192.168.50.79:3002';
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_SESSION_API || 'https://orion-chat.sidekickportal.com';
 
 /**
  * Create a new chat session
