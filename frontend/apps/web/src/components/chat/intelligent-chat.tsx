@@ -7,7 +7,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Brain, Database, Cpu, Zap, Clock, Sparkles, History, Trash2, Copy, Check } from 'lucide-react';
+import { Send, Brain, Database, Cpu, Zap, Clock, Sparkles, History, Trash2, Copy, Check, ChevronDown, Plus } from 'lucide-react';
 import { GlassPanel, GlassButton, GlassInput, GlassCard, StatusIndicator, NebulaBackground } from '@/components/ui/glass-components';
 import { cn } from '@/lib/utils';
 import { useEnhancedChatStream } from '@/hooks/useEnhancedChatStream';
@@ -59,6 +59,7 @@ export const IntelligentChat: React.FC = () => {
   const [session, setSession] = useState<ChatSession | null>(null);
   const [showMetadata, setShowMetadata] = useState(false);
   const [systemStatus, setSystemStatus] = useState<'connecting' | 'online' | 'error'>('connecting');
+  const [showSessionHistory, setShowSessionHistory] = useState(false);
 
   // Use the real enhanced chat stream hook
   const {
@@ -197,6 +198,15 @@ export const IntelligentChat: React.FC = () => {
     clearBuffer();
   };
 
+  const handleNewChat = () => {
+    setMessages([]);
+    setShowSessionHistory(false);
+    if (userEmail) {
+      localStorage.removeItem(`chat-messages-${userEmail}`);
+    }
+    clearBuffer();
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -207,29 +217,69 @@ export const IntelligentChat: React.FC = () => {
   return (
     <NebulaBackground variant="chat" className="p-4">
       <div className="max-w-4xl mx-auto h-screen flex flex-col">
-        {/* Header */}
-        <GlassPanel variant="nav" className="mb-4 p-4">
-          <div className="flex justify-between items-center mb-2">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-blue-400" />
-              <h1 className="text-xl font-bold text-white">ORION Intelligent Chat</h1>
-              <span className="px-2 py-1 text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-full">
-                Gemini 2.5
-              </span>
-              <StatusIndicator
-                status={systemStatus === 'connecting' ? 'loading' : systemStatus}
-                label={systemStatus === 'online' ? 'Connected' : systemStatus === 'connecting' ? 'Connecting' : 'Error'}
-              />
+        {/* Compact Header with Session History */}
+        <GlassPanel variant="nav" className="mb-4 py-2 px-3 sm:px-4">
+          <div className="flex justify-between items-center">
+            {/* Left: Title + Connection Status */}
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />
+              <h1 className="text-base sm:text-lg font-bold text-white">ORION Chat</h1>
+              <div className={cn(
+                "w-2 h-2 rounded-full",
+                systemStatus === 'online' ? 'bg-green-400 animate-pulse' :
+                systemStatus === 'error' ? 'bg-red-400' :
+                'bg-yellow-400 animate-pulse'
+              )} title={systemStatus === 'online' ? 'Connected' : systemStatus === 'connecting' ? 'Connecting' : 'Error'} />
             </div>
-            
-            <div className="flex items-center gap-2">
+
+            {/* Right: Session History + Actions */}
+            <div className="flex items-center space-x-1 sm:space-x-2">
+              {/* Session History Dropdown */}
+              <div className="relative">
+                <GlassButton
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSessionHistory(!showSessionHistory)}
+                  title="Session history"
+                  className="px-2 sm:px-3 py-1 text-xs sm:text-sm flex items-center gap-1"
+                >
+                  <History className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">History</span>
+                  <span className="sm:hidden">{messages.length}</span>
+                  <ChevronDown className="w-3 h-3" />
+                </GlassButton>
+
+                {showSessionHistory && (
+                  <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-gray-900/98 backdrop-blur-sm border border-blue-500/30 rounded-lg shadow-2xl z-50 max-h-96 overflow-hidden">
+                    <div className="p-3 border-b border-blue-500/20 flex justify-between items-center">
+                      <h3 className="font-semibold text-white text-sm">Chat History</h3>
+                      <GlassButton
+                        variant="primary"
+                        size="sm"
+                        onClick={handleNewChat}
+                        className="px-2 py-1 text-xs flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" />
+                        New
+                      </GlassButton>
+                    </div>
+                    <div className="overflow-y-auto max-h-80 p-2">
+                      <div className="text-sm text-gray-400 p-4 text-center">
+                        Session history coming soon
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <GlassButton
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowMetadata(!showMetadata)}
                 title="Toggle metadata"
+                className="hidden sm:flex"
               >
-                Show Details
+                Details
               </GlassButton>
               <GlassButton
                 variant="ghost"
@@ -238,25 +288,7 @@ export const IntelligentChat: React.FC = () => {
                 title="Clear chat"
               >
                 <Trash2 className="w-4 h-4" />
-                Clear
               </GlassButton>
-            </div>
-          </div>
-
-          {/* Metadata Row */}
-          <div className="flex items-center justify-between text-sm text-white/70">
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1">
-                <Brain className="w-4 h-4" />
-                Messages: {messages.length}
-              </span>
-              <span className="flex items-center gap-1">
-                <Database className="w-4 h-4" />
-                Session: {session?.sessionId.slice(-8) || 'Loading...'}
-              </span>
-            </div>
-            <div className="text-xs">
-              Powered by ORION-CORE Intelligent Orchestrator
             </div>
           </div>
         </GlassPanel>
