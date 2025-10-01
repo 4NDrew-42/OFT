@@ -12,6 +12,7 @@ import { GlassPanel, GlassButton, GlassInput, GlassCard, StatusIndicator, Nebula
 import { cn } from '@/lib/utils';
 import { useEnhancedChatStream } from '@/hooks/useEnhancedChatStream';
 import { useSession } from 'next-auth/react';
+import { getUserSessions, getSessionMessages, saveMessage, createSession, setCurrentSessionId, getCurrentSessionId, getUserId, clearCurrentSession, type ChatSession as SessionType } from '@/lib/session/client';
 
 // Types
 interface ChatMessage {
@@ -60,6 +61,7 @@ export const IntelligentChat: React.FC = () => {
   const [showMetadata, setShowMetadata] = useState(false);
   const [systemStatus, setSystemStatus] = useState<'connecting' | 'online' | 'error'>('connecting');
   const [showSessionHistory, setShowSessionHistory] = useState(false);
+  const [sessionHistory, setSessionHistory] = useState<SessionType[]>([]);
 
   // Use the real enhanced chat stream hook
   const {
@@ -177,6 +179,13 @@ export const IntelligentChat: React.FC = () => {
     }
   }, [buffer, isStreaming, streamProvider, clearBuffer]);
 
+  // Load session history on mount
+  useEffect(() => {
+    if (userEmail) {
+      loadSessionHistory();
+    }
+  }, [userEmail]);
+
   // Provider switching functionality
   const handleProviderSwitch = (provider: ChatProvider) => {
     setCurrentProvider(provider);
@@ -205,6 +214,62 @@ export const IntelligentChat: React.FC = () => {
       localStorage.removeItem(`chat-messages-${userEmail}`);
     }
     clearBuffer();
+  };
+
+  // Load session history from Redis
+  const loadSessionHistory = async () => {
+    if (!userEmail) return;
+    try {
+      const userId = getUserId();
+      const sessions = await getUserSessions(userId);
+      setSessionHistory(sessions);
+    } catch (error) {
+      console.error('Failed to load session history:', error);
+    }
+  };
+
+  // Load messages from a specific session
+  const loadSessionMessages = async (sessionId: string) => {
+    try {
+      const msgs = await getSessionMessages(sessionId);
+      if (msgs.length > 0) {
+        setMessages(msgs.map(m => ({
+          id: m.id,
+          type: m.role,
+          content: m.content,
+          timestamp: new Date(m.timestamp).getTime(),
+          metadata: m.metadata
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to load session messages:', error);
+    }
+  };
+
+  // Switch to a different session
+  const handleLoadSession = async (sessionId: string) => {
+    setCurrentSessionId(sessionId);
+    await loadSessionMessages(sessionId);
+    setShowSessionHistory(false);
+  };
+
+  // Update handleNewChat to create a new session
+  const handleNewChatWithSession = async () => {
+    if (!userEmail) return;
+    
+    clearCurrentSession();
+    const userId = getUserId();
+    try {
+      const newSession = await createSession(userId, '');
+      setCurrentSessionId(newSession.sessionId);
+      setMessages([]);
+      await loadSessionHistory();
+      setShowSessionHistory(false);
+    } catch (error) {
+      console.error('Failed to create new session:', error);
+      // Fallback to original behavior
+      handleNewChat();
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -256,17 +321,36 @@ export const IntelligentChat: React.FC = () => {
                       <GlassButton
                         variant="primary"
                         size="sm"
-                        onClick={handleNewChat}
+                        onClick={handleNewChatWithSession}
                         className="px-2 py-1 text-xs flex items-center gap-1"
                       >
                         <Plus className="w-3 h-3" />
                         New
                       </GlassButton>
-                    </div>
                     <div className="overflow-y-auto max-h-80 p-2">
-                      <div className="text-sm text-gray-400 p-4 text-center">
-                        Session history coming soon
-                      </div>
+                      {sessionHistory.length === 0 ? (
+                        <div className="text-sm text-gray-400 p-4 text-center">
+                          No previous chats
+                        </div>
+                      ) : (
+                        sessionHistory.map((sess) => (
+                          <button
+                            key={sess.sessionId}
+                            onClick={() => handleLoadSession(sess.sessionId)}
+                            className={`w-full text-left p-3 border-b border-gray-800/50 hover:bg-blue-500/10 transition-colors ${
+                              sess.sessionId === getCurrentSessionId() ? 'bg-blue-500/20' : ''
+                            }`}
+                          >
+                            <div className="font-medium text-white text-sm truncate">{sess.title || 'Untitled Chat'}</div>
+                            <div className="text-xs text-gray-300 truncate mt-1">{sess.lastMessage || sess.firstMessage}</div>
+                            <div className="text-xs text-gray-500 mt-1 flex justify-between">
+                              <span>{sess.messageCount} messages</span>
+                              <span>{new Date(sess.updatedAt).toLocaleDateString()}</span>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
                     </div>
                   </div>
                 )}
