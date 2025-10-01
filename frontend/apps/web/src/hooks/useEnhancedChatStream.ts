@@ -7,6 +7,7 @@ export type ChatProvider = 'deepseek' | 'gemini';
 export interface EnhancedChatOptions {
   provider?: ChatProvider;
   enableRAG?: boolean;
+  conversationHistory?: Array<{ role: string; content: string }>;
 }
 
 export function useEnhancedChatStream(sub: string, options: EnhancedChatOptions = {}) {
@@ -23,11 +24,17 @@ export function useEnhancedChatStream(sub: string, options: EnhancedChatOptions 
     setIsStreaming(false);
   }
 
-  function getEnhancedChatUrl(query: string, sub: string, provider: ChatProvider): string {
+  function getEnhancedChatUrl(query: string, sub: string, provider: ChatProvider, history?: Array<{ role: string; content: string }>): string {
     const params = new URLSearchParams({
       q: query,
       sub: sub
     });
+    
+    // Add conversation history if provided
+    if (history && history.length > 0) {
+      params.set('history', JSON.stringify(history));
+    }
+    
     // Bypass enhanced-stream and use proxy directly to avoid truncation issues
     return `/api/proxy/chat-stream?${params.toString()}`;
   }
@@ -46,7 +53,8 @@ export function useEnhancedChatStream(sub: string, options: EnhancedChatOptions 
     setIsStreaming(true);
 
     const provider = customOptions?.provider || currentProvider;
-    const url = getEnhancedChatUrl(q, sub, provider);
+    const conversationHistory = customOptions?.conversationHistory || [];
+    const url = getEnhancedChatUrl(q, sub, provider, conversationHistory);
     
     const es = new EventSource(url, { withCredentials: false });
     
