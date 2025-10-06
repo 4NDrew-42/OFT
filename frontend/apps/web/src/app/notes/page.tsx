@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { mintJWT, searchNotes, createNote, updateNote, deleteNote, getNote } from "@/lib/orionClient";
+import { mintJWT, searchNotes, createNote, updateNote, deleteNote, getNote, getMyNotes } from "@/lib/orionClient";
 import RichTextEditor from "@/components/notes/RichTextEditor";
 import { Plus, Search, Edit, Trash2, X, Save, Tag } from "lucide-react";
 
@@ -53,14 +53,8 @@ export default function NotesPage() {
     try {
       setNotesLoading(true);
       const token = await mintJWT(sub);
-      // This will be implemented in backend
-      const res = await fetch(`/api/notes/user/${encodeURIComponent(sub)}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setMyNotes(data.notes || []);
-      }
+      const data = await getMyNotes(sub, token);
+      setMyNotes(data.notes || []);
     } catch (e) {
       console.error('Failed to load notes:', e);
     } finally {
