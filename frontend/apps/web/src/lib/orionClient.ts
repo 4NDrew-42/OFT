@@ -185,3 +185,110 @@ export async function postOCRProxy(file: File, sub: string) {
   return ct.includes('application/json') ? r.json() : r.text();
 }
 
+
+// ============================================================================
+// EXPENSES API
+// ============================================================================
+
+export async function getMyExpenses(userEmail: string, token: string, filters?: {
+  category?: string;
+  start_date?: string;
+  end_date?: string;
+  payment_method?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const params = new URLSearchParams();
+  if (filters?.category) params.append('category', filters.category);
+  if (filters?.start_date) params.append('start_date', filters.start_date);
+  if (filters?.end_date) params.append('end_date', filters.end_date);
+  if (filters?.payment_method) params.append('payment_method', filters.payment_method);
+  if (filters?.limit) params.append('limit', filters.limit.toString());
+  if (filters?.offset) params.append('offset', filters.offset.toString());
+  
+  const queryString = params.toString();
+  const url = `https://fabric.sidekickportal.com/api/expenses/user/${encodeURIComponent(userEmail)}${queryString ? '?' + queryString : ''}`;
+  
+  const r = await fetch(url, {
+    headers: authHeaders(token),
+    cache: "no-store"
+  });
+  if (!r.ok) throw new Error(`Get my expenses error ${r.status}`);
+  return r.json();
+}
+
+export async function getExpenseSummary(userEmail: string, token: string, filters?: {
+  start_date?: string;
+  end_date?: string;
+}) {
+  const params = new URLSearchParams();
+  if (filters?.start_date) params.append('start_date', filters.start_date);
+  if (filters?.end_date) params.append('end_date', filters.end_date);
+  
+  const queryString = params.toString();
+  const url = `https://fabric.sidekickportal.com/api/expenses/summary/${encodeURIComponent(userEmail)}${queryString ? '?' + queryString : ''}`;
+  
+  const r = await fetch(url, {
+    headers: authHeaders(token),
+    cache: "no-store"
+  });
+  if (!r.ok) throw new Error(`Get expense summary error ${r.status}`);
+  return r.json();
+}
+
+export async function createExpense(expense: {
+  user_email: string;
+  amount: number;
+  expense_date: string;
+  category?: string;
+  merchant?: string;
+  description?: string;
+  payment_method?: string;
+  receipt_image_data?: string;
+  tags?: string[];
+}, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/expenses`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(expense)
+  });
+  if (!r.ok) throw new Error(`Create expense error ${r.status}`);
+  return r.json();
+}
+
+export async function updateExpense(expenseId: string, updates: Partial<{
+  amount: number;
+  expense_date: string;
+  category: string;
+  merchant: string;
+  description: string;
+  payment_method: string;
+  receipt_image_data: string;
+  tags: string[];
+}>, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/expenses/${expenseId}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(updates)
+  });
+  if (!r.ok) throw new Error(`Update expense error ${r.status}`);
+  return r.json();
+}
+
+export async function deleteExpense(expenseId: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/expenses/${expenseId}`, {
+    method: "DELETE",
+    headers: authHeaders(token)
+  });
+  if (!r.ok) throw new Error(`Delete expense error ${r.status}`);
+  return r.json();
+}
+
+export async function getExpense(expenseId: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/expenses/${expenseId}`, {
+    headers: authHeaders(token),
+    cache: "no-store"
+  });
+  if (!r.ok) throw new Error(`Get expense error ${r.status}`);
+  return r.json();
+}

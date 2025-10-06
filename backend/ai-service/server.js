@@ -96,6 +96,8 @@ app.use("/api/notes", require("./routes/notes-api"));
 // Calendar API
 app.use("/api/calendar", require("./routes/calendar-api"));
 
+app.use("/api/expenses", require("./routes/expenses-api"));
+
 app.use((err, req, res, next) => {
   console.error('Unhandled AI service error:', err);
   res.status(500).json({ success: false, error: 'Internal server error' });

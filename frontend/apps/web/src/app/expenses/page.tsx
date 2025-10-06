@@ -1,61 +1,647 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { mintJWT, postOCR } from "@/lib/orionClient";
+import { 
+  mintJWT, 
+  postOCR, 
+  getMyExpenses, 
+  createExpense, 
+  updateExpense, 
+  deleteExpense,
+  getExpenseSummary 
+} from "@/lib/orionClient";
+import { Plus, Search, Edit, Trash2, X, Save, Tag, Camera, Upload, DollarSign, Calendar, CreditCard } from "lucide-react";
 
 const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB
+
+const CATEGORIES = [
+  "Food & Dining",
+  "Transportation",
+  "Shopping",
+  "Entertainment",
+  "Bills & Utilities",
+  "Healthcare",
+  "Travel",
+  "Education",
+  "Other"
+];
+
+const PAYMENT_METHODS = [
+  "cash",
+  "credit_card",
+  "debit_card",
+  "bank_transfer",
+  "paypal",
+  "venmo",
+  "other"
+];
+
+interface Expense {
+  id: string;
+  user_email: string;
+  amount: number;
+  expense_date: string;
+  category?: string;
+  merchant?: string;
+  description?: string;
+  payment_method?: string;
+  receipt_image_data?: string;
+  tags?: string[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface ExpenseSummary {
+  category: string;
+  count: number;
+  total: number;
+  average: number;
+}
 
 export default function ExpensesPage() {
   const { data: session } = useSession();
   const sub = session?.user?.email ?? "";
+  
+  // Expenses list state
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [expensesLoading, setExpensesLoading] = useState(false);
+  const [summary, setSummary] = useState<ExpenseSummary[]>([]);
+  
+  // Editor state
+  const [showEditor, setShowEditor] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
+  const [expenseCategory, setExpenseCategory] = useState("");
+  const [expenseMerchant, setExpenseMerchant] = useState("");
+  const [expenseDescription, setExpenseDescription] = useState("");
+  const [expensePaymentMethod, setExpensePaymentMethod] = useState("");
+  const [expenseTags, setExpenseTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  
+  // Receipt upload state
   const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [items, setItems] = useState<Array<{ description: string; amount: number; date: string; merchant?: string }>>([]);
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    if (!file) { setError("no_file"); return; }
-    if (file.size > MAX_FILE_BYTES) { setError("file_too_large"); return; }
-    if (!sub) { setError("no_sub"); return; }
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  
+  // Filter state
+  const [filterCategory, setFilterCategory] = useState("");
+  const [filterPaymentMethod, setFilterPaymentMethod] = useState("");
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
+  
+  // Load expenses on mount
+  useEffect(() => {
+    if (sub) {
+      loadExpenses();
+      loadSummary();
+    }
+  }, [sub, filterCategory, filterPaymentMethod, filterStartDate, filterEndDate]);
+  
+  async function loadExpenses() {
+    if (!sub) return;
     try {
-      setLoading(true);
+      setExpensesLoading(true);
       const token = await mintJWT(sub);
-      const res = await postOCR(file, token);
-      setItems((prev) => [{ description: res.description, amount: res.amount, date: res.date, merchant: res.merchant }, ...prev]);
-      setFile(null);
-      (document.getElementById("file-input") as HTMLInputElement | null)?.value && ((document.getElementById("file-input") as HTMLInputElement).value = "");
-    } catch (err: any) {
-      setError(err?.message || "upload_failed");
+      const filters: any = {};
+      if (filterCategory) filters.category = filterCategory;
+      if (filterPaymentMethod) filters.payment_method = filterPaymentMethod;
+      if (filterStartDate) filters.start_date = filterStartDate;
+      if (filterEndDate) filters.end_date = filterEndDate;
+      
+      const data = await getMyExpenses(sub, token, filters);
+      setExpenses(data.expenses || []);
+    } catch (e) {
+      console.error('Failed to load expenses:', e);
     } finally {
-      setLoading(false);
+      setExpensesLoading(false);
     }
   }
-
+  
+  async function loadSummary() {
+    if (!sub) return;
+    try {
+      const token = await mintJWT(sub);
+      const filters: any = {};
+      if (filterStartDate) filters.start_date = filterStartDate;
+      if (filterEndDate) filters.end_date = filterEndDate;
+      
+      const data = await getExpenseSummary(sub, token, filters);
+      setSummary(data.summary || []);
+    } catch (e) {
+      console.error('Failed to load summary:', e);
+    }
+  }
+  
+  function openEditor(expense?: Expense) {
+    if (expense) {
+      setEditingExpense(expense);
+      setExpenseAmount(expense.amount.toString());
+      setExpenseDate(expense.expense_date);
+      setExpenseCategory(expense.category || "");
+      setExpenseMerchant(expense.merchant || "");
+      setExpenseDescription(expense.description || "");
+      setExpensePaymentMethod(expense.payment_method || "");
+      setExpenseTags(expense.tags || []);
+      setReceiptPreview(expense.receipt_image_data || null);
+    } else {
+      setEditingExpense(null);
+      setExpenseAmount("");
+      setExpenseDate(new Date().toISOString().split('T')[0]);
+      setExpenseCategory("");
+      setExpenseMerchant("");
+      setExpenseDescription("");
+      setExpensePaymentMethod("");
+      setExpenseTags([]);
+      setReceiptPreview(null);
+    }
+    setFile(null);
+    setSaveError(null);
+    setShowEditor(true);
+  }
+  
+  function closeEditor() {
+    setShowEditor(false);
+    setEditingExpense(null);
+    setFile(null);
+    setReceiptPreview(null);
+  }
+  
+  async function handleSave() {
+    setSaveError(null);
+    if (!sub) { setSaveError("no_sub"); return; }
+    if (!expenseAmount || !expenseDate) { setSaveError("missing_required_fields"); return; }
+    
+    try {
+      setSaveLoading(true);
+      const token = await mintJWT(sub);
+      
+      const expenseData = {
+        user_email: sub,
+        amount: parseFloat(expenseAmount),
+        expense_date: expenseDate,
+        category: expenseCategory || undefined,
+        merchant: expenseMerchant || undefined,
+        description: expenseDescription || undefined,
+        payment_method: expensePaymentMethod || undefined,
+        receipt_image_data: receiptPreview || undefined,
+        tags: expenseTags.length > 0 ? expenseTags : undefined
+      };
+      
+      if (editingExpense) {
+        await updateExpense(editingExpense.id, expenseData, token);
+      } else {
+        await createExpense(expenseData, token);
+      }
+      
+      await loadExpenses();
+      await loadSummary();
+      closeEditor();
+    } catch (err: any) {
+      setSaveError(err?.message || "save_failed");
+    } finally {
+      setSaveLoading(false);
+    }
+  }
+  
+  async function handleDelete(expenseId: string) {
+    if (!confirm("Delete this expense?")) return;
+    try {
+      const token = await mintJWT(sub);
+      await deleteExpense(expenseId, token);
+      await loadExpenses();
+      await loadSummary();
+    } catch (err) {
+      console.error('Delete failed:', err);
+    }
+  }
+  
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
+    
+    if (selectedFile.size > MAX_FILE_BYTES) {
+      setOcrError("file_too_large");
+      return;
+    }
+    
+    setFile(selectedFile);
+    setOcrError(null);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setReceiptPreview(event.target?.result as string);
+    };
+    reader.readAsDataURL(selectedFile);
+  }
+  
+  async function handleOCR() {
+    if (!file || !sub) return;
+    
+    try {
+      setOcrLoading(true);
+      setOcrError(null);
+      const token = await mintJWT(sub);
+      const result = await postOCR(file, token);
+      
+      // Auto-populate form fields from OCR
+      if (result.amount) setExpenseAmount(result.amount.toString());
+      if (result.date) setExpenseDate(result.date);
+      if (result.merchant) setExpenseMerchant(result.merchant);
+      if (result.description) setExpenseDescription(result.description);
+      
+    } catch (err: any) {
+      setOcrError(err?.message || "ocr_failed");
+    } finally {
+      setOcrLoading(false);
+    }
+  }
+  
+  function addTag() {
+    if (!tagInput.trim()) return;
+    if (expenseTags.includes(tagInput.trim())) return;
+    setExpenseTags([...expenseTags, tagInput.trim()]);
+    setTagInput("");
+  }
+  
+  function removeTag(tag: string) {
+    setExpenseTags(expenseTags.filter(t => t !== tag));
+  }
+  
+  const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0);
+  
   return (
-    <main className="p-4 pb-24 max-w-screen-sm mx-auto">
-      <h1 className="text-xl font-semibold mb-3">Expenses</h1>
-
-      <form onSubmit={onSubmit} className="flex items-center gap-2">
-        <input id="file-input" type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="flex-1 text-sm bg-input text-foreground border border-border rounded px-3 py-2 focus:ring-2 focus:ring-ring focus:border-transparent" />
-        <button disabled={!file || !sub || loading} className="rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-50">{loading ? "Uploading..." : "Upload"}</button>
-      </form>
-
-      {error && <p className="mt-2 text-sm text-rose-600">Error: {error}</p>}
-
-      <div className="mt-6 space-y-3">
-        {items.map((it, idx) => (
-          <div key={idx} className="rounded border p-3 text-sm">
-            <div className="flex justify-between"><span className="font-medium">{it.description}</span><span>${"" + it.amount}</span></div>
-            <div className="opacity-70">{it.merchant || ""}</div>
-            <div className="opacity-70">{it.date}</div>
+    <main className="p-4 pb-24 max-w-screen-lg mx-auto">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Expenses</h1>
+        <button
+          onClick={() => openEditor()}
+          className="flex items-center gap-2 rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+        >
+          <Plus size={16} />
+          Add Expense
+        </button>
+      </div>
+      
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="text-sm text-gray-600 dark:text-gray-400">Total Expenses</div>
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">${totalExpenses.toFixed(2)}</div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="text-sm text-gray-600 dark:text-gray-400">Total Count</div>
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{expenses.length}</div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div className="text-sm text-gray-600 dark:text-gray-400">Average</div>
+          <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            ${expenses.length > 0 ? (totalExpenses / expenses.length).toFixed(2) : '0.00'}
+          </div>
+        </div>
+      </div>
+      
+      {/* Filters */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Category</label>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
+            >
+              <option value="">All Categories</option>
+              {CATEGORIES.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Payment Method</label>
+            <select
+              value={filterPaymentMethod}
+              onChange={(e) => setFilterPaymentMethod(e.target.value)}
+              className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
+            >
+              <option value="">All Methods</option>
+              {PAYMENT_METHODS.map(method => (
+                <option key={method} value={method}>{method.replace('_', ' ').toUpperCase()}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">Start Date</label>
+            <input
+              type="date"
+              value={filterStartDate}
+              onChange={(e) => setFilterStartDate(e.target.value)}
+              className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">End Date</label>
+            <input
+              type="date"
+              value={filterEndDate}
+              onChange={(e) => setFilterEndDate(e.target.value)}
+              className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
+            />
+          </div>
+        </div>
+      </div>
+      
+      {/* Expenses List */}
+      <div className="space-y-3">
+        {expensesLoading && <p className="text-sm text-gray-600 dark:text-gray-400">Loading expenses...</p>}
+        {!expensesLoading && expenses.length === 0 && (
+          <p className="text-sm text-gray-600 dark:text-gray-400">No expenses found. Add your first expense!</p>
+        )}
+        {expenses.map((expense) => (
+          <div
+            key={expense.id}
+            className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:border-blue-500 dark:hover:border-blue-400 transition-colors"
+          >
+            <div className="flex justify-between items-start">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                    ${parseFloat(expense.amount.toString()).toFixed(2)}
+                  </span>
+                  {expense.category && (
+                    <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded">
+                      {expense.category}
+                    </span>
+                  )}
+                  {expense.payment_method && (
+                    <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 text-xs rounded flex items-center gap-1">
+                      <CreditCard size={12} />
+                      {expense.payment_method.replace('_', ' ')}
+                    </span>
+                  )}
+                </div>
+                {expense.merchant && (
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">{expense.merchant}</div>
+                )}
+                {expense.description && (
+                  <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">{expense.description}</div>
+                )}
+                <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <Calendar size={12} />
+                    {new Date(expense.expense_date).toLocaleDateString()}
+                  </span>
+                  {expense.tags && expense.tags.length > 0 && (
+                    <div className="flex items-center gap-1">
+                      <Tag size={12} />
+                      {expense.tags.map(tag => (
+                        <span key={tag} className="px-1 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => openEditor(expense)}
+                  className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
+                >
+                  <Edit size={16} />
+                </button>
+                <button
+                  onClick={() => handleDelete(expense.id)}
+                  className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+            {expense.receipt_image_data && (
+              <div className="mt-3">
+                <img
+                  src={expense.receipt_image_data}
+                  alt="Receipt"
+                  className="max-w-xs rounded border border-gray-200 dark:border-gray-700"
+                />
+              </div>
+            )}
           </div>
         ))}
-        {!items.length && <p className="text-sm opacity-70">No receipts processed yet.</p>}
       </div>
+      
+      {/* Editor Modal - CONTINUED IN NEXT PART */}
+      
+      {/* Editor Modal */}
+      {showEditor && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                  {editingExpense ? 'Edit Expense' : 'Add Expense'}
+                </h2>
+                <button onClick={closeEditor} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                  <X size={24} />
+                </button>
+              </div>
+              
+              {/* Receipt Upload Section */}
+              <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
+                  Receipt Image (Optional)
+                </label>
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="flex-1 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded px-3 py-2"
+                  />
+                  {file && (
+                    <button
+                      onClick={handleOCR}
+                      disabled={ocrLoading}
+                      className="flex items-center gap-2 rounded bg-green-600 px-4 py-2 text-sm text-white hover:bg-green-700 disabled:opacity-50"
+                    >
+                      <Upload size={16} />
+                      {ocrLoading ? 'Processing...' : 'Extract Data'}
+                    </button>
+                  )}
+                </div>
+                {ocrError && <p className="text-sm text-red-600 mb-2">OCR Error: {ocrError}</p>}
+                {receiptPreview && (
+                  <div className="mt-3">
+                    <img
+                      src={receiptPreview}
+                      alt="Receipt preview"
+                      className="max-w-full max-h-64 rounded border border-gray-200 dark:border-gray-700"
+                    />
+                  </div>
+                )}
+              </div>
+              
+              {/* Form Fields */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
+                      Amount *
+                    </label>
+                    <div className="relative">
+                      <DollarSign size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={expenseAmount}
+                        onChange={(e) => setExpenseAmount(e.target.value)}
+                        placeholder="0.00"
+                        className="w-full pl-9 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
+                      Date *
+                    </label>
+                    <input
+                      type="date"
+                      value={expenseDate}
+                      onChange={(e) => setExpenseDate(e.target.value)}
+                      className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
+                      Category
+                    </label>
+                    <select
+                      value={expenseCategory}
+                      onChange={(e) => setExpenseCategory(e.target.value)}
+                      className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
+                    >
+                      <option value="">Select category</option>
+                      {CATEGORIES.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
+                      Payment Method
+                    </label>
+                    <select
+                      value={expensePaymentMethod}
+                      onChange={(e) => setExpensePaymentMethod(e.target.value)}
+                      className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
+                    >
+                      <option value="">Select method</option>
+                      {PAYMENT_METHODS.map(method => (
+                        <option key={method} value={method}>{method.replace('_', ' ').toUpperCase()}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
+                    Merchant/Vendor
+                  </label>
+                  <input
+                    type="text"
+                    value={expenseMerchant}
+                    onChange={(e) => setExpenseMerchant(e.target.value)}
+                    placeholder="e.g., Whole Foods, Shell Gas Station"
+                    className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={expenseDescription}
+                    onChange={(e) => setExpenseDescription(e.target.value)}
+                    placeholder="Add notes about this expense..."
+                    rows={3}
+                    className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
+                    Tags
+                  </label>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                      placeholder="Add tag..."
+                      className="flex-1 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
+                    />
+                    <button
+                      onClick={addTag}
+                      className="rounded bg-gray-600 px-4 py-2 text-sm text-white hover:bg-gray-700"
+                    >
+                      <Tag size={16} />
+                    </button>
+                  </div>
+                  {expenseTags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {expenseTags.map(tag => (
+                        <span
+                          key={tag}
+                          className="flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded"
+                        >
+                          {tag}
+                          <button onClick={() => removeTag(tag)} className="hover:text-blue-600">
+                            <X size={12} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {saveError && (
+                <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-600 dark:text-red-400">
+                  Error: {saveError}
+                </div>
+              )}
+              
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handleSave}
+                  disabled={saveLoading}
+                  className="flex-1 flex items-center justify-center gap-2 rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  <Save size={16} />
+                  {saveLoading ? 'Saving...' : 'Save Expense'}
+                </button>
+                <button
+                  onClick={closeEditor}
+                  className="rounded border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
-
