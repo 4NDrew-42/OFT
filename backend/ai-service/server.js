@@ -90,6 +90,12 @@ app.use('/api/ai', recommendationsRouter);
 app.use('/api/ai/search', vectorSearchRouter);
 app.use('/api/ai/analytics', analyticsRouter);
 
+// Notes API
+app.use("/api/notes", require("./routes/notes-api"));
+
+// Calendar API
+app.use("/api/calendar", require("./routes/calendar-api"));
+
 app.use((err, req, res, next) => {
   console.error('Unhandled AI service error:', err);
   res.status(500).json({ success: false, error: 'Internal server error' });

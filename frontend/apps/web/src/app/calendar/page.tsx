@@ -1,56 +1,177 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { mintJWT, eventExtract } from "@/lib/orionClient";
+import { mintJWT, getMyEvents, createEvent, updateEvent, deleteEvent } from "@/lib/orionClient";
+import CalendarComponent from "@/components/calendar/CalendarComponent";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import "./calendar.css";
+
+interface CalendarEvent {
+  id: string;
+  title: string;
+  start: Date;
+  end: Date;
+  description?: string;
+  location?: string;
+  tags?: string[];
+  color?: string;
+  allDay?: boolean;
+}
 
 export default function CalendarPage() {
   const { data: session } = useSession();
   const sub = session?.user?.email ?? "";
-  const [text, setText] = useState("");
+
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [events, setEvents] = useState<Array<{ title: string; when: string; location?: string; notes?: string }>>([]);
 
-  async function onAdd(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    if (!text) return;
-    if (!sub) { setError("no_sub"); return; }
+  // Load events on mount
+  useEffect(() => {
+    if (sub) {
+      loadEvents();
+    }
+  }, [sub]);
+
+  async function loadEvents() {
+    if (!sub) return;
+
     try {
       setLoading(true);
+      setError(null);
       const token = await mintJWT(sub);
-      const evt = await eventExtract(text, token);
-      setEvents((prev)=>[{ title: evt.title || text.slice(0,40), when: evt.when, location: evt.location, notes: evt.notes }, ...prev]);
-      setText("");
+      const response = await getMyEvents(sub, token);
+
+      if (response.success && response.events) {
+        // Convert API events to calendar format
+        const calendarEvents = response.events.map((event: any) => ({
+          id: event.id,
+          title: event.title,
+          start: new Date(event.start_time),
+          end: new Date(event.end_time || event.start_time),
+          description: event.description,
+          location: event.location,
+          tags: event.tags || [],
+          color: event.color,
+          allDay: event.all_day || false,
+        }));
+
+        setEvents(calendarEvents);
+      }
     } catch (e: any) {
-      setError(e?.message || "add_failed");
+      console.error("Failed to load events:", e);
+      setError(e?.message || "Failed to load events");
     } finally {
       setLoading(false);
     }
   }
 
+  async function handleEventCreate(eventData: Omit<CalendarEvent, "id">) {
+    if (!sub) throw new Error("Not authenticated");
+
+    const token = await mintJWT(sub);
+
+    const apiEventData = {
+      user_email: sub,
+      title: eventData.title,
+      description: eventData.description,
+      location: eventData.location,
+      start_time: eventData.start.toISOString(),
+      end_time: eventData.end.toISOString(),
+      all_day: eventData.allDay || false,
+      tags: eventData.tags || [],
+      color: eventData.color,
+    };
+
+    const response = await createEvent(apiEventData, token);
+
+    if (response.success && response.event) {
+      // Add new event to state
+      const newEvent: CalendarEvent = {
+        id: response.event.id,
+        title: response.event.title,
+        start: new Date(response.event.start_time),
+        end: new Date(response.event.end_time),
+        description: response.event.description,
+        location: response.event.location,
+        tags: response.event.tags || [],
+        color: response.event.color,
+        allDay: response.event.all_day || false,
+      };
+
+      setEvents((prev) => [...prev, newEvent]);
+    }
+  }
+
+  async function handleEventUpdate(id: string, eventData: Partial<CalendarEvent>) {
+    if (!sub) throw new Error("Not authenticated");
+
+    const token = await mintJWT(sub);
+
+    const apiEventData: any = {};
+
+    if (eventData.title !== undefined) apiEventData.title = eventData.title;
+    if (eventData.description !== undefined) apiEventData.description = eventData.description;
+    if (eventData.location !== undefined) apiEventData.location = eventData.location;
+    if (eventData.start !== undefined) apiEventData.start_time = eventData.start.toISOString();
+    if (eventData.end !== undefined) apiEventData.end_time = eventData.end.toISOString();
+    if (eventData.allDay !== undefined) apiEventData.all_day = eventData.allDay;
+    if (eventData.tags !== undefined) apiEventData.tags = eventData.tags;
+    if (eventData.color !== undefined) apiEventData.color = eventData.color;
+
+    const response = await updateEvent(id, apiEventData, token);
+
+    if (response.success && response.event) {
+      // Update event in state
+      setEvents((prev) =>
+        prev.map((event) =>
+          event.id === id
+            ? {
+                ...event,
+                title: response.event.title,
+                start: new Date(response.event.start_time),
+                end: new Date(response.event.end_time),
+                description: response.event.description,
+                location: response.event.location,
+                tags: response.event.tags || [],
+                color: response.event.color,
+                allDay: response.event.all_day || false,
+              }
+            : event
+        )
+      );
+    }
+  }
+
+  async function handleEventDelete(id: string) {
+    if (!sub) throw new Error("Not authenticated");
+
+    const token = await mintJWT(sub);
+    const response = await deleteEvent(id, token);
+
+    if (response.success) {
+      // Remove event from state
+      setEvents((prev) => prev.filter((event) => event.id !== id));
+    }
+  }
+
   return (
-    <main className="p-4 pb-24 max-w-screen-sm mx-auto">
-      <h1 className="text-xl font-semibold mb-3">Calendar</h1>
+    <main className="p-4 pb-24 h-screen flex flex-col">
+      {error && (
+        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700 rounded text-red-800 dark:text-red-200 text-sm">
+          {error}
+        </div>
+      )}
 
-      <form onSubmit={onAdd} className="flex gap-2 items-center">
-        <input className="flex-1 rounded border px-3 py-2 text-sm bg-input text-foreground placeholder:text-muted-foreground border-border focus:ring-2 focus:ring-ring focus:border-transparent" placeholder="e.g., Lunch with Sam tomorrow 12pm at Cafe Rio" value={text} onChange={(e)=>setText(e.target.value)} />
-        <button disabled={!sub || !text || loading} className="rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-50">{loading?"Adding...":"Quick add"}</button>
-      </form>
-
-      {error && <p className="mt-2 text-sm text-rose-600">Error: {error}</p>}
-
-      <div className="mt-6 space-y-3">
-        {events.map((ev, idx)=> (
-          <div key={idx} className="rounded border p-3 text-sm">
-            <div className="font-medium">{ev.title}</div>
-            <div className="opacity-80">{new Date(ev.when).toLocaleString()}</div>
-            {ev.location && <div className="opacity-70">{ev.location}</div>}
-            {ev.notes && <div className="opacity-70 whitespace-pre-wrap">{ev.notes}</div>}
-          </div>
-        ))}
-        {!events.length && <p className="text-sm opacity-70">No events yet.</p>}
+      <div className="flex-1 min-h-0">
+        <CalendarComponent
+          events={events}
+          onEventCreate={handleEventCreate}
+          onEventUpdate={handleEventUpdate}
+          onEventDelete={handleEventDelete}
+          loading={loading}
+        />
       </div>
     </main>
   );

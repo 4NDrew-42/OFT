@@ -40,7 +40,10 @@ export async function getFabricPatterns(token: string) {
   return r.json();
 }
 
-// Placeholder: wire to backend when notes search endpoint is exposed on Fabric Bridge
+// ============================================================================
+// NOTES API
+// ============================================================================
+
 export async function searchNotes(query: string, topK: number, semantic: boolean, token: string) {
   try {
     const r = await fetch(`${FABRIC_BASE_URL}/api/notes/search?q=${encodeURIComponent(query)}&k=${Math.min(Math.max(topK, 1), 25)}&semantic=${semantic?1:0}`,
@@ -52,7 +55,57 @@ export async function searchNotes(query: string, topK: number, semantic: boolean
   }
 }
 
-// Placeholder: wire to Fabric pattern (event_extract) when exposed
+export async function createNote(noteData: { title: string; content: string; tags?: string[]; user_email: string }, token: string) {
+  const r = await fetch(`${FABRIC_BASE_URL}/api/notes`, {
+    method: "POST",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(noteData),
+  });
+  if (!r.ok) throw new Error(`Create note error ${r.status}`);
+  return r.json();
+}
+
+export async function updateNote(noteId: string, noteData: { title: string; content: string; tags?: string[] }, token: string) {
+  const r = await fetch(`${FABRIC_BASE_URL}/api/notes/${noteId}`, {
+    method: "PUT",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(noteData),
+  });
+  if (!r.ok) throw new Error(`Update note error ${r.status}`);
+  return r.json();
+}
+
+export async function deleteNote(noteId: string, token: string) {
+  const r = await fetch(`${FABRIC_BASE_URL}/api/notes/${noteId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!r.ok) throw new Error(`Delete note error ${r.status}`);
+  return r.json();
+}
+
+export async function getNote(noteId: string, token: string) {
+  const r = await fetch(`${FABRIC_BASE_URL}/api/notes/${noteId}`, {
+    headers: authHeaders(token),
+    cache: "no-store"
+  });
+  if (!r.ok) throw new Error(`Get note error ${r.status}`);
+  return r.json();
+}
+
+export async function getMyNotes(userEmail: string, token: string) {
+  const r = await fetch(`${FABRIC_BASE_URL}/api/notes/user/${encodeURIComponent(userEmail)}`, {
+    headers: authHeaders(token),
+    cache: "no-store"
+  });
+  if (!r.ok) throw new Error(`Get my notes error ${r.status}`);
+  return r.json();
+}
+
+// ============================================================================
+// CALENDAR API
+// ============================================================================
+
 export async function eventExtract(text: string, token: string) {
   try {
     const r = await fetch(`${FABRIC_BASE_URL}/api/calendar/event_extract`, {
@@ -67,6 +120,48 @@ export async function eventExtract(text: string, token: string) {
   }
 }
 
+export async function createEvent(eventData: any, token: string) {
+  const r = await fetch(`${FABRIC_BASE_URL}/api/calendar/events`, {
+    method: "POST",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(eventData),
+  });
+  if (!r.ok) throw new Error(`Create event error ${r.status}`);
+  return r.json();
+}
+
+export async function updateEvent(eventId: string, eventData: any, token: string) {
+  const r = await fetch(`${FABRIC_BASE_URL}/api/calendar/events/${eventId}`, {
+    method: "PUT",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(eventData),
+  });
+  if (!r.ok) throw new Error(`Update event error ${r.status}`);
+  return r.json();
+}
+
+export async function deleteEvent(eventId: string, token: string) {
+  const r = await fetch(`${FABRIC_BASE_URL}/api/calendar/events/${eventId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!r.ok) throw new Error(`Delete event error ${r.status}`);
+  return r.json();
+}
+
+export async function getMyEvents(userEmail: string, token: string) {
+  const r = await fetch(`${FABRIC_BASE_URL}/api/calendar/events/user/${encodeURIComponent(userEmail)}`, {
+    headers: authHeaders(token),
+    cache: "no-store"
+  });
+  if (!r.ok) throw new Error(`Get my events error ${r.status}`);
+  return r.json();
+}
+
+// ============================================================================
+// PROXY ROUTES (for client-side calls without exposing tokens)
+// ============================================================================
+
 // For chat streaming, prefer the proxy route to attach Authorization server-side
 export function getChatProxyUrl(q: string, sub: string) {
   const u = new URL("/api/proxy/chat-stream", window.location.origin);
@@ -74,7 +169,6 @@ export function getChatProxyUrl(q: string, sub: string) {
   u.searchParams.set("sub", sub);
   return u.toString();
 }
-
 
 export async function getSystemStatusProxy(sub: string) {
   const r = await fetch(`/api/proxy/system-status?sub=${encodeURIComponent(sub)}`, { cache: 'no-store' });
@@ -90,3 +184,4 @@ export async function postOCRProxy(file: File, sub: string) {
   const ct = r.headers.get('content-type') || '';
   return ct.includes('application/json') ? r.json() : r.text();
 }
+

@@ -1,0 +1,491 @@
+"use client";
+
+import { useState, useCallback, useMemo } from "react";
+import { Calendar, momentLocalizer, View, SlotInfo } from "react-big-calendar";
+import moment from "moment";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import { X, Save, Trash2, Calendar as CalendarIcon, Clock, MapPin, Tag } from "lucide-react";
+
+// Configure moment localizer
+const localizer = momentLocalizer(moment);
+
+interface CalendarEvent {
+  id: string;
+  title: string;
+  start: Date;
+  end: Date;
+  description?: string;
+  location?: string;
+  tags?: string[];
+  color?: string;
+  allDay?: boolean;
+}
+
+interface CalendarComponentProps {
+  events: CalendarEvent[];
+  onEventCreate: (event: Omit<CalendarEvent, "id">) => Promise<void>;
+  onEventUpdate: (id: string, event: Partial<CalendarEvent>) => Promise<void>;
+  onEventDelete: (id: string) => Promise<void>;
+  loading?: boolean;
+}
+
+export default function CalendarComponent({
+  events,
+  onEventCreate,
+  onEventUpdate,
+  onEventDelete,
+  loading = false,
+}: CalendarComponentProps) {
+  // View state
+  const [view, setView] = useState<View>("month");
+  const [date, setDate] = useState(new Date());
+
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
+  const [modalMode, setModalMode] = useState<"create" | "edit">("create");
+
+  // Form state
+  const [formTitle, setFormTitle] = useState("");
+  const [formStart, setFormStart] = useState("");
+  const [formEnd, setFormEnd] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const [formLocation, setFormLocation] = useState("");
+  const [formTags, setFormTags] = useState<string[]>([]);
+  const [formTagInput, setFormTagInput] = useState("");
+  const [formAllDay, setFormAllDay] = useState(false);
+  const [formColor, setFormColor] = useState("#3b82f6");
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Convert events to calendar format
+  const calendarEvents = useMemo(() => {
+    return events.map((event) => ({
+      ...event,
+      start: new Date(event.start),
+      end: new Date(event.end),
+    }));
+  }, [events]);
+
+  // Handle event selection
+  const handleSelectEvent = useCallback((event: CalendarEvent) => {
+    setEditingEvent(event);
+    setModalMode("edit");
+    setFormTitle(event.title);
+    setFormStart(moment(event.start).format("YYYY-MM-DDTHH:mm"));
+    setFormEnd(moment(event.end).format("YYYY-MM-DDTHH:mm"));
+    setFormDescription(event.description || "");
+    setFormLocation(event.location || "");
+    setFormTags(event.tags || []);
+    setFormAllDay(event.allDay || false);
+    setFormColor(event.color || "#3b82f6");
+    setShowModal(true);
+    setSaveError(null);
+  }, []);
+
+  // Handle slot selection (create new event)
+  const handleSelectSlot = useCallback((slotInfo: SlotInfo) => {
+    setEditingEvent(null);
+    setModalMode("create");
+    setFormTitle("");
+    setFormStart(moment(slotInfo.start).format("YYYY-MM-DDTHH:mm"));
+    setFormEnd(moment(slotInfo.end).format("YYYY-MM-DDTHH:mm"));
+    setFormDescription("");
+    setFormLocation("");
+    setFormTags([]);
+    setFormAllDay(slotInfo.slots?.length === 1);
+    setFormColor("#3b82f6");
+    setShowModal(true);
+    setSaveError(null);
+  }, []);
+
+  // Handle event drag and drop
+  const handleEventDrop = useCallback(
+    async ({ event, start, end }: { event: CalendarEvent; start: Date; end: Date }) => {
+      try {
+        await onEventUpdate(event.id, {
+          start,
+          end,
+        });
+      } catch (error: any) {
+        console.error("Failed to update event:", error);
+        alert(`Failed to move event: ${error.message || "Unknown error"}`);
+      }
+    },
+    [onEventUpdate]
+  );
+
+  // Handle event resize
+  const handleEventResize = useCallback(
+    async ({ event, start, end }: { event: CalendarEvent; start: Date; end: Date }) => {
+      try {
+        await onEventUpdate(event.id, {
+          start,
+          end,
+        });
+      } catch (error: any) {
+        console.error("Failed to resize event:", error);
+        alert(`Failed to resize event: ${error.message || "Unknown error"}`);
+      }
+    },
+    [onEventUpdate]
+  );
+
+  // Close modal
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingEvent(null);
+    setSaveError(null);
+  };
+
+  // Add tag
+  const addTag = () => {
+    if (formTagInput.trim() && !formTags.includes(formTagInput.trim())) {
+      setFormTags([...formTags, formTagInput.trim()]);
+      setFormTagInput("");
+    }
+  };
+
+  // Remove tag
+  const removeTag = (tag: string) => {
+    setFormTags(formTags.filter((t) => t !== tag));
+  };
+
+  // Save event
+  const saveEvent = async () => {
+    if (!formTitle.trim()) {
+      setSaveError("Title is required");
+      return;
+    }
+
+    if (!formStart || !formEnd) {
+      setSaveError("Start and end times are required");
+      return;
+    }
+
+    const startDate = new Date(formStart);
+    const endDate = new Date(formEnd);
+
+    if (endDate <= startDate) {
+      setSaveError("End time must be after start time");
+      return;
+    }
+
+    try {
+      setSaveLoading(true);
+      setSaveError(null);
+
+      const eventData = {
+        title: formTitle.trim(),
+        start: startDate,
+        end: endDate,
+        description: formDescription.trim() || undefined,
+        location: formLocation.trim() || undefined,
+        tags: formTags,
+        color: formColor,
+        allDay: formAllDay,
+      };
+
+      if (modalMode === "create") {
+        await onEventCreate(eventData);
+      } else if (editingEvent) {
+        await onEventUpdate(editingEvent.id, eventData);
+      }
+
+      closeModal();
+    } catch (error: any) {
+      setSaveError(error.message || "Failed to save event");
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  // Delete event
+  const deleteEvent = async () => {
+    if (!editingEvent) return;
+    if (!confirm("Delete this event? This cannot be undone.")) return;
+
+    try {
+      setSaveLoading(true);
+      await onEventDelete(editingEvent.id);
+      closeModal();
+    } catch (error: any) {
+      setSaveError(error.message || "Failed to delete event");
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  // Event style getter
+  const eventStyleGetter = useCallback((event: CalendarEvent) => {
+    return {
+      style: {
+        backgroundColor: event.color || "#3b82f6",
+        borderRadius: "4px",
+        opacity: 0.9,
+        color: "white",
+        border: "0px",
+        display: "block",
+      },
+    };
+  }, []);
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between mb-4 p-4 bg-card rounded-lg border">
+        <div className="flex items-center gap-2">
+          <CalendarIcon size={24} />
+          <h2 className="text-xl font-semibold">Calendar</h2>
+        </div>
+
+        {/* View Toggle */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setView("month")}
+            className={`px-3 py-1 rounded text-sm ${
+              view === "month"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+            }`}
+          >
+            Month
+          </button>
+          <button
+            onClick={() => setView("week")}
+            className={`px-3 py-1 rounded text-sm ${
+              view === "week"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+            }`}
+          >
+            Week
+          </button>
+          <button
+            onClick={() => setView("day")}
+            className={`px-3 py-1 rounded text-sm ${
+              view === "day"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+            }`}
+          >
+            Day
+          </button>
+          <button
+            onClick={() => setView("agenda")}
+            className={`px-3 py-1 rounded text-sm ${
+              view === "agenda"
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+            }`}
+          >
+            Agenda
+          </button>
+        </div>
+      </div>
+
+      {/* Calendar */}
+      <div className="flex-1 bg-white dark:bg-gray-800 rounded-lg border p-4 calendar-container">
+        {loading ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-gray-500">Loading events...</p>
+          </div>
+        ) : (
+          <Calendar
+            localizer={localizer}
+            events={calendarEvents}
+            startAccessor="start"
+            endAccessor="end"
+            view={view}
+            onView={setView}
+            date={date}
+            onNavigate={setDate}
+            onSelectEvent={handleSelectEvent}
+            onSelectSlot={handleSelectSlot}
+            onEventDrop={handleEventDrop}
+            onEventResize={handleEventResize}
+            eventPropGetter={eventStyleGetter}
+            selectable
+            resizable
+            popup
+            style={{ height: "100%", minHeight: "500px" }}
+            className="dark-calendar"
+          />
+        )}
+      </div>
+
+      {/* Event Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-xl font-semibold">
+                {modalMode === "create" ? "New Event" : "Edit Event"}
+              </h2>
+              <button onClick={closeModal} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Title */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Title *</label>
+                <input
+                  type="text"
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
+                  placeholder="Event title..."
+                  className="w-full rounded border px-3 py-2 text-sm"
+                />
+              </div>
+
+              {/* Date/Time */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Start *</label>
+                  <input
+                    type="datetime-local"
+                    value={formStart}
+                    onChange={(e) => setFormStart(e.target.value)}
+                    className="w-full rounded border px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">End *</label>
+                  <input
+                    type="datetime-local"
+                    value={formEnd}
+                    onChange={(e) => setFormEnd(e.target.value)}
+                    className="w-full rounded border px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* All Day */}
+              <div>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formAllDay}
+                    onChange={(e) => setFormAllDay(e.target.checked)}
+                  />
+                  <span className="text-sm">All day event</span>
+                </label>
+              </div>
+
+              {/* Location */}
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  <MapPin size={14} className="inline mr-1" />
+                  Location
+                </label>
+                <input
+                  type="text"
+                  value={formLocation}
+                  onChange={(e) => setFormLocation(e.target.value)}
+                  placeholder="Event location..."
+                  className="w-full rounded border px-3 py-2 text-sm"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Description</label>
+                <textarea
+                  value={formDescription}
+                  onChange={(e) => setFormDescription(e.target.value)}
+                  placeholder="Event description..."
+                  rows={3}
+                  className="w-full rounded border px-3 py-2 text-sm"
+                />
+              </div>
+
+              {/* Tags */}
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  <Tag size={14} className="inline mr-1" />
+                  Tags
+                </label>
+                <div className="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    value={formTagInput}
+                    onChange={(e) => setFormTagInput(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
+                    placeholder="Add tag..."
+                    className="flex-1 rounded border px-3 py-2 text-sm"
+                  />
+                  <button onClick={addTag} className="rounded bg-gray-600 px-3 py-2 text-sm text-white">
+                    Add
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {formTags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center gap-1 bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded text-sm"
+                    >
+                      {tag}
+                      <button onClick={() => removeTag(tag)}>
+                        <X size={14} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Color */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Color</label>
+                <input
+                  type="color"
+                  value={formColor}
+                  onChange={(e) => setFormColor(e.target.value)}
+                  className="w-20 h-10 rounded border cursor-pointer"
+                />
+              </div>
+
+              {saveError && <p className="text-sm text-rose-600">Error: {saveError}</p>}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between p-4 border-t">
+              <div>
+                {modalMode === "edit" && (
+                  <button
+                    onClick={deleteEvent}
+                    disabled={saveLoading}
+                    className="flex items-center gap-2 rounded border border-red-600 text-red-600 px-4 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-900/20"
+                  >
+                    <Trash2 size={16} />
+                    Delete
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={closeModal}
+                  className="rounded border px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveEvent}
+                  disabled={saveLoading || !formTitle.trim()}
+                  className="flex items-center gap-2 rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  <Save size={16} />
+                  {saveLoading ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
