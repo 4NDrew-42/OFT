@@ -1,101 +1,73 @@
-/**
- * AI Marketplace - Notes API
- * Fabric Bridge Endpoint for Notes CRUD Operations
- * Date: 2025-10-06
- * 
- * Integrates with:
- * - PostgreSQL (192.168.50.79:5432) - Note storage
- * - Qdrant (192.168.50.79:6333) - Vector embeddings
- * - ORION-PC LM Studio (192.168.50.83:1234) - Embedding generation
- */
-
 const express = require('express');
-// UUID validation function
-function isValidUUID(str) {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(str);
-}
-
-// UUID validation function
-function isValidUUID(str) {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(str);
-}
-
 const router = express.Router();
-const { Pool } = require('pg');
-const { QdrantClient } = require('@qdrant/js-client-rest');
+const pool = require('../db');
 const axios = require('axios');
 
-// Database configuration
-const pool = new Pool({
-  host: '192.168.50.79',
-  port: 5432,
-  database: 'orion_core',
-  user: 'orion',
-  password: process.env.POSTGRES_PASSWORD || 'changeme',
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-});
-
-// Qdrant configuration
-const qdrant = new QdrantClient({
-  url: 'http://192.168.50.79:6333',
-});
-
-const NOTES_COLLECTION = 'notes_embeddings';
-
-// Embedding service configuration
-const EMBEDDING_API = 'http://192.168.50.83:1234/v1/embeddings';
-const EMBEDDING_MODEL = 'text-embedding-gte-qwen2-1.5b-instruct';
+// UUID validation function
+function isValidUUID(str) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
 
 /**
- * Generate embedding for text using ORION-PC LM Studio
+ * Generate embedding for text
  */
 async function generateEmbedding(text) {
   try {
-    const response = await axios.post(EMBEDDING_API, {
-      model: EMBEDDING_MODEL,
-      input: text,
+    const response = await axios.post('http://192.168.50.83:1234/v1/embeddings', {
+      model: 'text-embedding-gte-qwen2-1.5b-instruct',
+      input: text
     }, {
-      timeout: 10000,
-      headers: { 'Content-Type': 'application/json' }
+      timeout: 30000
     });
     
-    if (response.data && response.data.data && response.data.data[0]) {
-      return response.data.data[0].embedding;
-    }
-    
-    throw new Error('Invalid embedding response');
+    return response.data.data[0].embedding;
   } catch (error) {
-    console.error('Embedding generation failed:', error.message);
-    throw error;
+    console.error('Embedding generation error:', error.message);
+    throw new Error('Failed to generate embedding');
   }
 }
 
 /**
- * Store embedding in Qdrant
+ * Store vector in Qdrant
  */
-async function storeEmbedding(noteId, userEmail, title, tags, embedding) {
+async function storeVector(noteId, embedding, metadata) {
   try {
-    await qdrant.upsert(NOTES_COLLECTION, {
+    await axios.put(`http://192.168.50.79:6333/collections/memory_chunks_v3_1536d/points`, {
       points: [{
         id: noteId,
         vector: embedding,
-        payload: {
-          note_id: noteId,
-          user_email: userEmail,
-          title: title,
-          tags: tags || [],
-          created_at: new Date().toISOString(),
-        }
+        payload: metadata
       }]
+    }, {
+      timeout: 10000
     });
-    return true;
   } catch (error) {
-    console.error('Qdrant storage failed:', error.message);
-    throw error;
+    console.error('Qdrant store error:', error.message);
+    throw new Error('Failed to store vector');
+  }
+}
+
+/**
+ * Search vectors in Qdrant
+ */
+async function searchVectors(embedding, limit = 8, filter = null) {
+  try {
+    const response = await axios.post(
+      `http://192.168.50.79:6333/collections/memory_chunks_v3_1536d/points/search`,
+      {
+        vector: embedding,
+        limit: limit,
+        with_payload: true,
+        filter: filter
+      },
+      { timeout: 10000 }
+    );
+    
+    return response.data.result;
+  } catch (error) {
+    console.error('Qdrant search error:', error.message);
+    throw new Error('Failed to search vectors');
   }
 }
 
@@ -118,37 +90,28 @@ router.post('/', async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    // Insert note into PostgreSQL
-    const insertQuery = `
-      INSERT INTO notes (user_email, title, content, tags)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, user_email, title, content, tags, created_at, updated_at
-    `;
-    
-    const result = await client.query(insertQuery, [
-      user_email,
-      title,
-      content,
-      tags || []
-    ]);
+    // Insert note
+    const result = await client.query(
+      `INSERT INTO notes (title, content, tags, user_email)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [title, content, tags || [], user_email]
+    );
     
     const note = result.rows[0];
     
-    // Generate and store embedding asynchronously
-    try {
-      const embeddingText = `${title}\n\n${content}`;
-      const embedding = await generateEmbedding(embeddingText);
-      await storeEmbedding(note.id, user_email, title, tags, embedding);
-      
-      // Update note with embedding reference
-      await client.query(
-        'UPDATE notes SET vector_embedding_id = $1 WHERE id = $2',
-        [note.id, note.id]
-      );
-    } catch (embError) {
-      console.error('Embedding generation failed (non-fatal):', embError.message);
-      // Continue without embedding - can be generated later
-    }
+    // Generate embedding
+    const embeddingText = `${title}\n\n${content}`;
+    const embedding = await generateEmbedding(embeddingText);
+    
+    // Store in Qdrant
+    await storeVector(note.id, embedding, {
+      type: 'note',
+      title: title,
+      user_email: user_email,
+      tags: tags || [],
+      created_at: note.created_at.toISOString()
+    });
     
     await client.query('COMMIT');
     
@@ -170,37 +133,76 @@ router.post('/', async (req, res) => {
 });
 
 /**
- * GET /api/notes/:id - Get single note
+ * GET /api/notes/search - Semantic search (MUST BE BEFORE /:id)
  */
-router.get('/:id', async (req, res) => {
-  const { id } = req.params;
+router.get('/search', async (req, res) => {
+  const { q, k = 8, semantic = 'true', user_email } = req.query;
+  
+  if (!q) {
+    return res.status(400).json({ error: 'Query parameter "q" is required' });
+  }
   
   try {
-    const result = await pool.query(
-      'SELECT * FROM notes WHERE id = $1',
-      [id]
-    );
+    let notes = [];
     
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Note not found' });
+    if (semantic === 'true' || semantic === '1') {
+      // Semantic search via Qdrant
+      const embedding = await generateEmbedding(q);
+      
+      const filter = user_email ? {
+        must: [{ key: 'user_email', match: { value: user_email } }]
+      } : null;
+      
+      const results = await searchVectors(embedding, parseInt(k), filter);
+      
+      // Get full notes from PostgreSQL
+      const noteIds = results.map(r => r.id);
+      
+      if (noteIds.length > 0) {
+        const placeholders = noteIds.map((_, i) => `$${i + 1}`).join(',');
+        const result = await pool.query(
+          `SELECT * FROM notes WHERE id IN (${placeholders})`,
+          noteIds
+        );
+        notes = result.rows;
+      }
+    } else {
+      // Full-text search in PostgreSQL
+      let query = `
+        SELECT * FROM notes
+        WHERE to_tsvector('english', title || ' ' || content) @@ plainto_tsquery('english', $1)
+      `;
+      const params = [q];
+      
+      if (user_email) {
+        query += ` AND user_email = $2`;
+        params.push(user_email);
+      }
+      
+      query += ` ORDER BY updated_at DESC LIMIT $${params.length + 1}`;
+      params.push(parseInt(k));
+      
+      const result = await pool.query(query, params);
+      notes = result.rows;
     }
     
     res.json({
       success: true,
-      note: result.rows[0]
+      notes: notes,
+      count: notes.length
     });
     
   } catch (error) {
-    console.error('Get note error:', error);
+    console.error('Search error:', error);
     res.status(500).json({
-      error: 'Failed to get note',
+      error: 'Search failed',
       message: error.message
     });
   }
 });
 
 /**
- * GET /api/notes/user/:email - Get user's notes
+ * GET /api/notes/user/:email - Get user's notes (MUST BE BEFORE /:id)
  */
 router.get('/user/:email', async (req, res) => {
   const { email } = req.params;
@@ -232,11 +234,51 @@ router.get('/user/:email', async (req, res) => {
 });
 
 /**
+ * GET /api/notes/:id - Get single note (MUST BE AFTER /search and /user/:email)
+ */
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+  
+  // Validate UUID
+  if (!isValidUUID(id)) {
+    return res.status(400).json({ error: 'Invalid note ID format' });
+  }
+  
+  try {
+    const result = await pool.query(
+      'SELECT * FROM notes WHERE id = $1',
+      [id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+    
+    res.json({
+      success: true,
+      note: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('Get note error:', error);
+    res.status(500).json({
+      error: 'Failed to get note',
+      message: error.message
+    });
+  }
+});
+
+/**
  * PUT /api/notes/:id - Update note
  */
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
   const { title, content, tags } = req.body;
+  
+  // Validate UUID
+  if (!isValidUUID(id)) {
+    return res.status(400).json({ error: 'Invalid note ID format' });
+  }
   
   if (!title && !content && !tags) {
     return res.status(400).json({
@@ -250,7 +292,7 @@ router.put('/:id', async (req, res) => {
   try {
     await client.query('BEGIN');
     
-    // Build dynamic update query
+    // Build update query
     const updates = [];
     const values = [];
     let paramCount = 1;
@@ -268,16 +310,17 @@ router.put('/:id', async (req, res) => {
       values.push(tags);
     }
     
+    updates.push(`updated_at = NOW()`);
     values.push(id);
     
-    const updateQuery = `
+    const query = `
       UPDATE notes
       SET ${updates.join(', ')}
       WHERE id = $${paramCount}
       RETURNING *
     `;
     
-    const result = await client.query(updateQuery, values);
+    const result = await client.query(query, values);
     
     if (result.rows.length === 0) {
       await client.query('ROLLBACK');
@@ -286,16 +329,17 @@ router.put('/:id', async (req, res) => {
     
     const note = result.rows[0];
     
-    // Regenerate embedding if content changed
-    if (title || content) {
-      try {
-        const embeddingText = `${note.title}\n\n${note.content}`;
-        const embedding = await generateEmbedding(embeddingText);
-        await storeEmbedding(note.id, note.user_email, note.title, note.tags, embedding);
-      } catch (embError) {
-        console.error('Embedding update failed (non-fatal):', embError.message);
-      }
-    }
+    // Update embedding
+    const embeddingText = `${note.title}\n\n${note.content}`;
+    const embedding = await generateEmbedding(embeddingText);
+    
+    await storeVector(note.id, embedding, {
+      type: 'note',
+      title: note.title,
+      user_email: note.user_email,
+      tags: note.tags || [],
+      updated_at: note.updated_at.toISOString()
+    });
     
     await client.query('COMMIT');
     
@@ -322,23 +366,18 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   const { id } = req.params;
   
+  // Validate UUID
+  if (!isValidUUID(id)) {
+    return res.status(400).json({ error: 'Invalid note ID format' });
+  }
+  
   const client = await pool.connect();
   
   try {
     await client.query('BEGIN');
     
-    // Delete from Qdrant
-    try {
-      await qdrant.delete(NOTES_COLLECTION, {
-        points: [id]
-      });
-    } catch (qdrantError) {
-      console.error('Qdrant deletion failed (non-fatal):', qdrantError.message);
-    }
-    
-    // Delete from PostgreSQL (cascade will handle embeddings table)
     const result = await client.query(
-      'DELETE FROM notes WHERE id = $1 RETURNING id',
+      'DELETE FROM notes WHERE id = $1 RETURNING *',
       [id]
     );
     
@@ -347,12 +386,23 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Note not found' });
     }
     
+    // Delete from Qdrant
+    try {
+      await axios.post(
+        `http://192.168.50.79:6333/collections/memory_chunks_v3_1536d/points/delete`,
+        { points: [id] },
+        { timeout: 5000 }
+      );
+    } catch (qdrantError) {
+      console.error('Qdrant delete error:', qdrantError.message);
+      // Continue anyway - PostgreSQL is source of truth
+    }
+    
     await client.query('COMMIT');
     
     res.json({
       success: true,
-      message: 'Note deleted successfully',
-      id: id
+      message: 'Note deleted successfully'
     });
     
   } catch (error) {
@@ -367,91 +417,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-/**
- * GET /api/notes/search - Semantic search
- */
-router.get('/search', async (req, res) => {
-  const { q, k = 8, semantic = 'true', user_email } = req.query;
-// Validate UUID if searching by ID  if (q && q.match(/^[0-9a-f]{8}-/)) {    if (!isValidUUID(q)) {      return res.status(400).json({ error: 'Invalid UUID format' });    }  }
-// Validate UUID if searching by ID  if (q && q.match(/^[0-9a-f]{8}-/)) {    if (!isValidUUID(q)) {      return res.status(400).json({ error: 'Invalid UUID format' });    }  }
-  
-  if (!q) {
-    return res.status(400).json({ error: 'Query parameter "q" is required' });
-  }
-  
-  try {
-    if (semantic === 'true') {
-      // Semantic search using Qdrant
-      const embedding = await generateEmbedding(q);
-      
-      const filter = user_email ? {
-        must: [{ key: 'user_email', match: { value: user_email } }]
-      } : undefined;
-      
-      const searchResult = await qdrant.search(NOTES_COLLECTION, {
-        vector: embedding,
-        limit: parseInt(k),
-        filter: filter,
-        with_payload: true
-      });
-      
-      // Fetch full notes from PostgreSQL
-      const noteIds = searchResult.map(r => r.payload.note_id);
-      
-      if (noteIds.length === 0) {
-        return res.json({ success: true, items: [] });
-      }
-      
-      const notesResult = await pool.query(
-        'SELECT * FROM notes WHERE id = ANY($1::uuid[])',
-        [noteIds]
-      );
-      
-      // Add similarity scores
-      const notesWithScores = notesResult.rows.map(note => {
-        const match = searchResult.find(r => r.payload.note_id === note.id);
-        return {
-          ...note,
-          similarity_score: match ? match.score : 0
-        };
-      });
-      
-      res.json({
-        success: true,
-        items: notesWithScores,
-        search_type: 'semantic'
-      });
-      
-    } else {
-      // Full-text search using PostgreSQL
-      const query = `
-        SELECT *, 
-          ts_rank(to_tsvector('english', title || ' ' || content), plainto_tsquery('english', $1)) as rank
-        FROM notes
-        WHERE to_tsvector('english', title || ' ' || content) @@ plainto_tsquery('english', $1)
-        ${user_email ? 'AND user_email = $2' : ''}
-        ORDER BY rank DESC
-        LIMIT $${user_email ? 3 : 2}
-      `;
-      
-      const values = user_email ? [q, user_email, k] : [q, k];
-      const result = await pool.query(query, values);
-      
-      res.json({
-        success: true,
-        items: result.rows,
-        search_type: 'fulltext'
-      });
-    }
-    
-  } catch (error) {
-    console.error('Search error:', error);
-    res.status(500).json({
-      error: 'Search failed',
-      message: error.message
-    });
-  }
-});
-
 module.exports = router;
-
