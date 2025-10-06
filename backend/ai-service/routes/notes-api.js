@@ -10,6 +10,18 @@
  */
 
 const express = require('express');
+// UUID validation function
+function isValidUUID(str) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
+// UUID validation function
+function isValidUUID(str) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 const router = express.Router();
 const { Pool } = require('pg');
 const { QdrantClient } = require('@qdrant/js-client-rest');
@@ -360,6 +372,8 @@ router.delete('/:id', async (req, res) => {
  */
 router.get('/search', async (req, res) => {
   const { q, k = 8, semantic = 'true', user_email } = req.query;
+// Validate UUID if searching by ID  if (q && q.match(/^[0-9a-f]{8}-/)) {    if (!isValidUUID(q)) {      return res.status(400).json({ error: 'Invalid UUID format' });    }  }
+// Validate UUID if searching by ID  if (q && q.match(/^[0-9a-f]{8}-/)) {    if (!isValidUUID(q)) {      return res.status(400).json({ error: 'Invalid UUID format' });    }  }
   
   if (!q) {
     return res.status(400).json({ error: 'Query parameter "q" is required' });

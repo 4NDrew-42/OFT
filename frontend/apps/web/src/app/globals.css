@@ -58,99 +58,21 @@
   }
 }
 
-/* ========================================
-   FORCE BLACK TEXT IN ALL MODALS AND INPUTS
-   ======================================== */
-
-/* Modal text colors - DARK BLUE */
-.fixed.inset-0 > div,
-.fixed.inset-0 h1,
-.fixed.inset-0 h2,
-.fixed.inset-0 h3,
-.fixed.inset-0 label,
-.fixed.inset-0 p,
-.fixed.inset-0 span {
-  color: rgb(30 58 138) !important; /* blue-900 */
+/* TipTap prose styling - proper inheritance */
+.prose {
+  @apply text-gray-900 dark:text-gray-100;
 }
 
-.dark .fixed.inset-0 > div,
-.dark .fixed.inset-0 h1,
-.dark .fixed.inset-0 h2,
-.dark .fixed.inset-0 h3,
-.dark .fixed.inset-0 label,
-.dark .fixed.inset-0 p,
-.dark .fixed.inset-0 span {
-  color: rgb(243 244 246) !important; /* gray-100 */
+.prose p,
+.prose h1,
+.prose h2,
+.prose h3,
+.prose li,
+.prose blockquote {
+  @apply text-gray-900 dark:text-gray-100;
 }
 
-/* TipTap Editor - FORCE BLACK TEXT */
-.ProseMirror,
-.ProseMirror *,
-.ProseMirror p,
-.ProseMirror h1,
-.ProseMirror h2,
-.ProseMirror h3,
-.ProseMirror li,
-.ProseMirror blockquote,
-.ProseMirror code,
-.ProseMirror strong,
-.ProseMirror em {
-  color: #000000 !important; /* Pure black */
-}
-
-.dark .ProseMirror,
-.dark .ProseMirror *,
-.dark .ProseMirror p,
-.dark .ProseMirror h1,
-.dark .ProseMirror h2,
-.dark .ProseMirror h3,
-.dark .ProseMirror li,
-.dark .ProseMirror blockquote,
-.dark .ProseMirror code,
-.dark .ProseMirror strong,
-.dark .ProseMirror em {
-  color: #FFFFFF !important; /* Pure white */
-}
-
-/* TipTap placeholder */
+/* Placeholder styling */
 .ProseMirror .is-editor-empty:first-child::before {
-  color: #6B7280 !important; /* gray-500 */
-}
-
-.dark .ProseMirror .is-editor-empty:first-child::before {
-  color: #9CA3AF !important; /* gray-400 */
-}
-
-/* ALL INPUT FIELDS - FORCE BLACK TEXT */
-.fixed.inset-0 input,
-.fixed.inset-0 textarea,
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="search"],
-textarea {
-  color: #000000 !important; /* Pure black */
-  background-color: white !important;
-}
-
-.dark .fixed.inset-0 input,
-.dark .fixed.inset-0 textarea,
-.dark input[type="text"],
-.dark input[type="email"],
-.dark input[type="password"],
-.dark input[type="search"],
-.dark textarea {
-  color: #FFFFFF !important; /* Pure white */
-  background-color: rgb(31 41 55) !important; /* gray-800 */
-}
-
-/* Input placeholders */
-input::placeholder,
-textarea::placeholder {
-  color: #9CA3AF !important; /* gray-400 */
-}
-
-.dark input::placeholder,
-.dark textarea::placeholder {
-  color: #6B7280 !important; /* gray-500 */
+  @apply text-gray-500 dark:text-gray-400;
 }

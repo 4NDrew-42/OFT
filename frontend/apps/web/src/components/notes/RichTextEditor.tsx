@@ -3,7 +3,6 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
-import Link from '@tiptap/extension-link';
 import { 
   Bold, 
   Italic, 
@@ -41,15 +40,10 @@ export default function RichTextEditor({
         heading: {
           levels: [1, 2, 3]
         }
+        // Note: Link extension is already included in StarterKit
       }),
       Placeholder.configure({
         placeholder
-      }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: 'text-blue-500 underline hover:text-blue-600'
-        }
       })
     ],
     content,
@@ -68,35 +62,9 @@ export default function RichTextEditor({
     return null;
   }
 
-  const MenuButton = ({ 
-    onClick, 
-    isActive = false, 
-    disabled = false, 
-    children, 
-    title 
-  }: { 
-    onClick: () => void; 
-    isActive?: boolean; 
-    disabled?: boolean; 
-    children: React.ReactNode;
-    title: string;
-  }) => (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={`p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
-        isActive ? 'bg-gray-200 dark:bg-gray-600' : ''
-      } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-    >
-      {children}
-    </button>
-  );
-
   const setLink = () => {
-    const previousUrl = editor.getAttributes('link').href;
-    const url = window.prompt('URL', previousUrl);
-
+    const url = window.prompt('Enter URL:');
+    
     if (url === null) {
       return;
     }
@@ -110,128 +78,153 @@ export default function RichTextEditor({
   };
 
   return (
-    <div className={`border rounded-lg overflow-hidden ${className}`}>
-      {/* Toolbar */}
+    <div className={`border rounded-lg ${className}`}>
       {editable && (
         <div className="flex flex-wrap gap-1 p-2 border-b bg-gray-50 dark:bg-gray-800">
           {/* Text Formatting */}
-          <div className="flex gap-1 border-r pr-2">
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleBold().run()}
-              isActive={editor.isActive('bold')}
-              title="Bold (Ctrl+B)"
-            >
-              <Bold size={18} />
-            </MenuButton>
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleItalic().run()}
-              isActive={editor.isActive('italic')}
-              title="Italic (Ctrl+I)"
-            >
-              <Italic size={18} />
-            </MenuButton>
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleStrike().run()}
-              isActive={editor.isActive('strike')}
-              title="Strikethrough"
-            >
-              <Strikethrough size={18} />
-            </MenuButton>
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleCode().run()}
-              isActive={editor.isActive('code')}
-              title="Inline Code"
-            >
-              <Code size={18} />
-            </MenuButton>
-          </div>
+          <button
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+              editor.isActive('bold') ? 'bg-gray-200 dark:bg-gray-700' : ''
+            }`}
+            title="Bold"
+          >
+            <Bold size={18} />
+          </button>
+          
+          <button
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+              editor.isActive('italic') ? 'bg-gray-200 dark:bg-gray-700' : ''
+            }`}
+            title="Italic"
+          >
+            <Italic size={18} />
+          </button>
+          
+          <button
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+              editor.isActive('strike') ? 'bg-gray-200 dark:bg-gray-700' : ''
+            }`}
+            title="Strikethrough"
+          >
+            <Strikethrough size={18} />
+          </button>
+          
+          <button
+            onClick={() => editor.chain().focus().toggleCode().run()}
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+              editor.isActive('code') ? 'bg-gray-200 dark:bg-gray-700' : ''
+            }`}
+            title="Code"
+          >
+            <Code size={18} />
+          </button>
+
+          <div className="w-px h-8 bg-gray-300 dark:bg-gray-600 mx-1" />
 
           {/* Headings */}
-          <div className="flex gap-1 border-r pr-2">
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-              isActive={editor.isActive('heading', { level: 1 })}
-              title="Heading 1"
-            >
-              <Heading1 size={18} />
-            </MenuButton>
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-              isActive={editor.isActive('heading', { level: 2 })}
-              title="Heading 2"
-            >
-              <Heading2 size={18} />
-            </MenuButton>
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-              isActive={editor.isActive('heading', { level: 3 })}
-              title="Heading 3"
-            >
-              <Heading3 size={18} />
-            </MenuButton>
-          </div>
+          <button
+            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+              editor.isActive('heading', { level: 1 }) ? 'bg-gray-200 dark:bg-gray-700' : ''
+            }`}
+            title="Heading 1"
+          >
+            <Heading1 size={18} />
+          </button>
+          
+          <button
+            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+              editor.isActive('heading', { level: 2 }) ? 'bg-gray-200 dark:bg-gray-700' : ''
+            }`}
+            title="Heading 2"
+          >
+            <Heading2 size={18} />
+          </button>
+          
+          <button
+            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+              editor.isActive('heading', { level: 3 }) ? 'bg-gray-200 dark:bg-gray-700' : ''
+            }`}
+            title="Heading 3"
+          >
+            <Heading3 size={18} />
+          </button>
+
+          <div className="w-px h-8 bg-gray-300 dark:bg-gray-600 mx-1" />
 
           {/* Lists */}
-          <div className="flex gap-1 border-r pr-2">
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleBulletList().run()}
-              isActive={editor.isActive('bulletList')}
-              title="Bullet List"
-            >
-              <List size={18} />
-            </MenuButton>
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleOrderedList().run()}
-              isActive={editor.isActive('orderedList')}
-              title="Numbered List"
-            >
-              <ListOrdered size={18} />
-            </MenuButton>
-          </div>
+          <button
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+              editor.isActive('bulletList') ? 'bg-gray-200 dark:bg-gray-700' : ''
+            }`}
+            title="Bullet List"
+          >
+            <List size={18} />
+          </button>
+          
+          <button
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+              editor.isActive('orderedList') ? 'bg-gray-200 dark:bg-gray-700' : ''
+            }`}
+            title="Numbered List"
+          >
+            <ListOrdered size={18} />
+          </button>
+
+          <div className="w-px h-8 bg-gray-300 dark:bg-gray-600 mx-1" />
 
           {/* Blockquote & Link */}
-          <div className="flex gap-1 border-r pr-2">
-            <MenuButton
-              onClick={() => editor.chain().focus().toggleBlockquote().run()}
-              isActive={editor.isActive('blockquote')}
-              title="Blockquote"
-            >
-              <Quote size={18} />
-            </MenuButton>
-            <MenuButton
-              onClick={setLink}
-              isActive={editor.isActive('link')}
-              title="Add Link"
-            >
-              <LinkIcon size={18} />
-            </MenuButton>
-          </div>
+          <button
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+              editor.isActive('blockquote') ? 'bg-gray-200 dark:bg-gray-700' : ''
+            }`}
+            title="Blockquote"
+          >
+            <Quote size={18} />
+          </button>
+          
+          <button
+            onClick={setLink}
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+              editor.isActive('link') ? 'bg-gray-200 dark:bg-gray-700' : ''
+            }`}
+            title="Add Link"
+          >
+            <LinkIcon size={18} />
+          </button>
+
+          <div className="w-px h-8 bg-gray-300 dark:bg-gray-600 mx-1" />
 
           {/* Undo/Redo */}
-          <div className="flex gap-1">
-            <MenuButton
-              onClick={() => editor.chain().focus().undo().run()}
-              disabled={!editor.can().undo()}
-              title="Undo (Ctrl+Z)"
-            >
-              <Undo size={18} />
-            </MenuButton>
-            <MenuButton
-              onClick={() => editor.chain().focus().redo().run()}
-              disabled={!editor.can().redo()}
-              title="Redo (Ctrl+Shift+Z)"
-            >
-              <Redo size={18} />
-            </MenuButton>
-          </div>
+          <button
+            onClick={() => editor.chain().focus().undo().run()}
+            disabled={!editor.can().undo()}
+            className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
+            title="Undo"
+          >
+            <Undo size={18} />
+          </button>
+          
+          <button
+            onClick={() => editor.chain().focus().redo().run()}
+            disabled={!editor.can().redo()}
+            className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
+            title="Redo"
+          >
+            <Redo size={18} />
+          </button>
         </div>
       )}
-
-      {/* Editor Content */}
-      <div className="p-4 bg-white dark:bg-gray-900">
-        <EditorContent editor={editor} />
-      </div>
+      
+      <EditorContent editor={editor} className={className} />
     </div>
   );
 }
-
