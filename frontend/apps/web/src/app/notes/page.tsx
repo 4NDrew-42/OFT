@@ -54,7 +54,7 @@ export default function NotesPage() {
       setNotesLoading(true);
       const token = await mintJWT(sub);
       // This will be implemented in backend
-      const res = await fetch(`/api/notes/my-notes?sub=${encodeURIComponent(sub)}`, {
+      const res = await fetch(`/api/notes/user/${encodeURIComponent(sub)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
