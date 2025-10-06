@@ -38,3 +38,4 @@ The app expects ORION services at the URLs declared in `.env.local`. Use the sam
 - `/` renders the hero, search bar, and dynamic feed grids.
 - `/robots.txt` and `/site.webmanifest` are reachable.
 - The backend status codes in the header reflect real tunnel endpoints in production.
+# Trigger rebuild Mon Oct  6 05:25:18 PM CDT 2025
