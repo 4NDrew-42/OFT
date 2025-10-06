@@ -35,7 +35,7 @@ export async function postOCR(file: File, token: string) {
 }
 
 export async function getFabricPatterns(token: string) {
-  const r = await fetch(`${FABRIC_BASE_URL}/fabric_patterns`, { headers: authHeaders(token), cache: "no-store" });
+  const r = await fetch(`https://fabric.sidekickportal.com/fabric_patterns`, { headers: authHeaders(token), cache: "no-store" });
   if (!r.ok) throw new Error(`Patterns error ${r.status}`);
   return r.json();
 }
@@ -46,7 +46,7 @@ export async function getFabricPatterns(token: string) {
 
 export async function searchNotes(query: string, topK: number, semantic: boolean, token: string) {
   try {
-    const r = await fetch(`${FABRIC_BASE_URL}/api/notes/search?q=${encodeURIComponent(query)}&k=${Math.min(Math.max(topK, 1), 25)}&semantic=${semantic?1:0}`,
+    const r = await fetch(`https://fabric.sidekickportal.com/api/notes/search?q=${encodeURIComponent(query)}&k=${Math.min(Math.max(topK, 1), 25)}&semantic=${semantic?1:0}`,
       { headers: authHeaders(token), cache: "no-store" });
     if (!r.ok) throw new Error(`Search error ${r.status}`);
     return r.json();
@@ -108,7 +108,7 @@ export async function getMyNotes(userEmail: string, token: string) {
 
 export async function eventExtract(text: string, token: string) {
   try {
-    const r = await fetch(`${FABRIC_BASE_URL}/api/calendar/event_extract`, {
+    const r = await fetch(`https://fabric.sidekickportal.com/api/calendar/event_extract`, {
       method: "POST",
       headers: { ...authHeaders(token), "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
@@ -121,7 +121,7 @@ export async function eventExtract(text: string, token: string) {
 }
 
 export async function createEvent(eventData: any, token: string) {
-  const r = await fetch(`${FABRIC_BASE_URL}/api/calendar/events`, {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/calendar/events`, {
     method: "POST",
     headers: { ...authHeaders(token), "Content-Type": "application/json" },
     body: JSON.stringify(eventData),
@@ -131,7 +131,7 @@ export async function createEvent(eventData: any, token: string) {
 }
 
 export async function updateEvent(eventId: string, eventData: any, token: string) {
-  const r = await fetch(`${FABRIC_BASE_URL}/api/calendar/events/${eventId}`, {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/calendar/events/${eventId}`, {
     method: "PUT",
     headers: { ...authHeaders(token), "Content-Type": "application/json" },
     body: JSON.stringify(eventData),
@@ -141,7 +141,7 @@ export async function updateEvent(eventId: string, eventData: any, token: string
 }
 
 export async function deleteEvent(eventId: string, token: string) {
-  const r = await fetch(`${FABRIC_BASE_URL}/api/calendar/events/${eventId}`, {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/calendar/events/${eventId}`, {
     method: "DELETE",
     headers: authHeaders(token),
   });
@@ -150,7 +150,7 @@ export async function deleteEvent(eventId: string, token: string) {
 }
 
 export async function getMyEvents(userEmail: string, token: string) {
-  const r = await fetch(`${FABRIC_BASE_URL}/api/calendar/events/user/${encodeURIComponent(userEmail)}`, {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/calendar/events/user/${encodeURIComponent(userEmail)}`, {
     headers: authHeaders(token),
     cache: "no-store"
   });
