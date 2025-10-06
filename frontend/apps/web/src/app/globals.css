@@ -24,3 +24,46 @@
 .dark .ProseMirror::placeholder {
   color: rgb(107 114 128) !important; /* gray-500 */
 }
+
+/* FORCE DARK BLUE TEXT IN ALL MODALS */
+.fixed.inset-0 > div {
+  color: rgb(30 58 138) !important; /* blue-900 */
+}
+
+.dark .fixed.inset-0 > div {
+  color: rgb(243 244 246) !important; /* gray-100 */
+}
+
+/* Force all text elements in modals */
+.fixed.inset-0 h1,
+.fixed.inset-0 h2,
+.fixed.inset-0 h3,
+.fixed.inset-0 label,
+.fixed.inset-0 p,
+.fixed.inset-0 span,
+.fixed.inset-0 div {
+  color: rgb(30 58 138) !important; /* blue-900 */
+}
+
+.dark .fixed.inset-0 h1,
+.dark .fixed.inset-0 h2,
+.dark .fixed.inset-0 h3,
+.dark .fixed.inset-0 label,
+.dark .fixed.inset-0 p,
+.dark .fixed.inset-0 span,
+.dark .fixed.inset-0 div {
+  color: rgb(243 244 246) !important; /* gray-100 */
+}
+
+/* Force input text colors */
+.fixed.inset-0 input,
+.fixed.inset-0 textarea {
+  color: rgb(30 58 138) !important; /* blue-900 */
+  background-color: white !important;
+}
+
+.dark .fixed.inset-0 input,
+.dark .fixed.inset-0 textarea {
+  color: rgb(243 244 246) !important; /* gray-100 */
+  background-color: rgb(31 41 55) !important; /* gray-800 */
+}
