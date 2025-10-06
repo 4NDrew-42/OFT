@@ -208,7 +208,7 @@ export default function NotesPage() {
                   value={noteTitle}
                   onChange={(e) => setNoteTitle(e.target.value)}
                   placeholder="Note title..."
-                  className="w-full rounded border px-3 py-2 text-sm bg-input text-foreground placeholder:text-muted-foreground border-border focus:ring-2 focus:ring-ring focus:border-transparent"
+                  className="w-full rounded border px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-muted-foreground border-border focus:ring-2 focus:ring-ring focus:border-transparent"
                 />
               </div>
 
@@ -222,7 +222,7 @@ export default function NotesPage() {
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
                     placeholder="Add tag..."
-                    className="flex-1 rounded border px-3 py-2 text-sm bg-input text-foreground placeholder:text-muted-foreground border-border focus:ring-2 focus:ring-ring focus:border-transparent"
+                    className="flex-1 rounded border px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-muted-foreground border-border focus:ring-2 focus:ring-ring focus:border-transparent"
                   />
                   <button
                     onClick={addTag}
@@ -289,7 +289,7 @@ export default function NotesPage() {
         </h2>
         <div className="flex gap-2 items-center mb-2">
           <input
-            className="flex-1 rounded border px-3 py-2 text-sm bg-input text-foreground placeholder:text-muted-foreground border-border focus:ring-2 focus:ring-ring focus:border-transparent"
+            className="flex-1 rounded border px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-muted-foreground border-border focus:ring-2 focus:ring-ring focus:border-transparent"
             placeholder="Search notes..."
             value={q}
             onChange={(e) => setQ(e.target.value)}

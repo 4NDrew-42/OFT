@@ -1,0 +1,26 @@
+
+/* Force text colors in TipTap editor - override prose inherit */
+.ProseMirror {
+  color: rgb(17 24 39) !important; /* gray-900 */
+}
+
+.dark .ProseMirror {
+  color: rgb(243 244 246) !important; /* gray-100 */
+}
+
+.ProseMirror p,
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3,
+.ProseMirror li,
+.ProseMirror blockquote {
+  color: inherit !important;
+}
+
+.ProseMirror::placeholder {
+  color: rgb(156 163 175) !important; /* gray-400 */
+}
+
+.dark .ProseMirror::placeholder {
+  color: rgb(107 114 128) !important; /* gray-500 */
+}
