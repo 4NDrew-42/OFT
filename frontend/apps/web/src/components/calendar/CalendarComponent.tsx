@@ -370,7 +370,7 @@ export default function CalendarComponent({
 
               {/* All Day */}
               <div>
-                <label className="flex items-center gap-2">
+                <label className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
                   <input
                     type="checkbox"
                     checked={formAllDay}
