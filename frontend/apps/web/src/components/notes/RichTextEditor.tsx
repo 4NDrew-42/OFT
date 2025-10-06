@@ -40,7 +40,6 @@ export default function RichTextEditor({
         heading: {
           levels: [1, 2, 3]
         }
-        // Note: Link extension is already included in StarterKit
       }),
       Placeholder.configure({
         placeholder
@@ -51,9 +50,16 @@ export default function RichTextEditor({
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
+    onCreate: ({ editor }) => {
+      // DEFAULT TO BOLD - makes text black and visible
+      if (editable) {
+        editor.chain().focus().toggleBold().run();
+      }
+    },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none min-h-[200px] max-w-none text-gray-900 dark:text-gray-100'
+        class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none min-h-[200px] max-w-none',
+        style: 'color: #000000 !important;'
       }
     }
   });
@@ -80,22 +86,21 @@ export default function RichTextEditor({
   return (
     <div className={`border rounded-lg ${className}`}>
       {editable && (
-        <div className="flex flex-wrap gap-1 p-2 border-b bg-gray-50 dark:bg-gray-800">
-          {/* Text Formatting */}
+        <div className="flex flex-wrap gap-1 p-2 border-b bg-gray-50 dark:bg-gray-700">
           <button
             onClick={() => editor.chain().focus().toggleBold().run()}
-            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
-              editor.isActive('bold') ? 'bg-gray-200 dark:bg-gray-700' : ''
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 ${
+              editor.isActive('bold') ? 'bg-gray-300 dark:bg-gray-600' : ''
             }`}
-            title="Bold"
+            title="Bold (Default ON for visibility)"
           >
             <Bold size={18} />
           </button>
           
           <button
             onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
-              editor.isActive('italic') ? 'bg-gray-200 dark:bg-gray-700' : ''
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 ${
+              editor.isActive('italic') ? 'bg-gray-300 dark:bg-gray-600' : ''
             }`}
             title="Italic"
           >
@@ -104,8 +109,8 @@ export default function RichTextEditor({
           
           <button
             onClick={() => editor.chain().focus().toggleStrike().run()}
-            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
-              editor.isActive('strike') ? 'bg-gray-200 dark:bg-gray-700' : ''
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 ${
+              editor.isActive('strike') ? 'bg-gray-300 dark:bg-gray-600' : ''
             }`}
             title="Strikethrough"
           >
@@ -114,8 +119,8 @@ export default function RichTextEditor({
           
           <button
             onClick={() => editor.chain().focus().toggleCode().run()}
-            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
-              editor.isActive('code') ? 'bg-gray-200 dark:bg-gray-700' : ''
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 ${
+              editor.isActive('code') ? 'bg-gray-300 dark:bg-gray-600' : ''
             }`}
             title="Code"
           >
@@ -124,11 +129,10 @@ export default function RichTextEditor({
 
           <div className="w-px h-8 bg-gray-300 dark:bg-gray-600 mx-1" />
 
-          {/* Headings */}
           <button
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
-              editor.isActive('heading', { level: 1 }) ? 'bg-gray-200 dark:bg-gray-700' : ''
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 ${
+              editor.isActive('heading', { level: 1 }) ? 'bg-gray-300 dark:bg-gray-600' : ''
             }`}
             title="Heading 1"
           >
@@ -137,8 +141,8 @@ export default function RichTextEditor({
           
           <button
             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
-              editor.isActive('heading', { level: 2 }) ? 'bg-gray-200 dark:bg-gray-700' : ''
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 ${
+              editor.isActive('heading', { level: 2 }) ? 'bg-gray-300 dark:bg-gray-600' : ''
             }`}
             title="Heading 2"
           >
@@ -147,8 +151,8 @@ export default function RichTextEditor({
           
           <button
             onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
-              editor.isActive('heading', { level: 3 }) ? 'bg-gray-200 dark:bg-gray-700' : ''
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 ${
+              editor.isActive('heading', { level: 3 }) ? 'bg-gray-300 dark:bg-gray-600' : ''
             }`}
             title="Heading 3"
           >
@@ -157,11 +161,10 @@ export default function RichTextEditor({
 
           <div className="w-px h-8 bg-gray-300 dark:bg-gray-600 mx-1" />
 
-          {/* Lists */}
           <button
             onClick={() => editor.chain().focus().toggleBulletList().run()}
-            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
-              editor.isActive('bulletList') ? 'bg-gray-200 dark:bg-gray-700' : ''
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 ${
+              editor.isActive('bulletList') ? 'bg-gray-300 dark:bg-gray-600' : ''
             }`}
             title="Bullet List"
           >
@@ -170,8 +173,8 @@ export default function RichTextEditor({
           
           <button
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
-              editor.isActive('orderedList') ? 'bg-gray-200 dark:bg-gray-700' : ''
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 ${
+              editor.isActive('orderedList') ? 'bg-gray-300 dark:bg-gray-600' : ''
             }`}
             title="Numbered List"
           >
@@ -180,11 +183,10 @@ export default function RichTextEditor({
 
           <div className="w-px h-8 bg-gray-300 dark:bg-gray-600 mx-1" />
 
-          {/* Blockquote & Link */}
           <button
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
-              editor.isActive('blockquote') ? 'bg-gray-200 dark:bg-gray-700' : ''
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 ${
+              editor.isActive('blockquote') ? 'bg-gray-300 dark:bg-gray-600' : ''
             }`}
             title="Blockquote"
           >
@@ -193,8 +195,8 @@ export default function RichTextEditor({
           
           <button
             onClick={setLink}
-            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
-              editor.isActive('link') ? 'bg-gray-200 dark:bg-gray-700' : ''
+            className={`p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 ${
+              editor.isActive('link') ? 'bg-gray-300 dark:bg-gray-600' : ''
             }`}
             title="Add Link"
           >
@@ -203,11 +205,10 @@ export default function RichTextEditor({
 
           <div className="w-px h-8 bg-gray-300 dark:bg-gray-600 mx-1" />
 
-          {/* Undo/Redo */}
           <button
             onClick={() => editor.chain().focus().undo().run()}
             disabled={!editor.can().undo()}
-            className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
+            className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
             title="Undo"
           >
             <Undo size={18} />
@@ -216,7 +217,7 @@ export default function RichTextEditor({
           <button
             onClick={() => editor.chain().focus().redo().run()}
             disabled={!editor.can().redo()}
-            className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-50"
+            className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
             title="Redo"
           >
             <Redo size={18} />

@@ -56,7 +56,7 @@ export async function searchNotes(query: string, topK: number, semantic: boolean
 }
 
 export async function createNote(noteData: { title: string; content: string; tags?: string[]; user_email: string }, token: string) {
-  const r = await fetch(`${FABRIC_BASE_URL}/api/notes`, {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/notes`, {
     method: "POST",
     headers: { ...authHeaders(token), "Content-Type": "application/json" },
     body: JSON.stringify(noteData),
@@ -66,7 +66,7 @@ export async function createNote(noteData: { title: string; content: string; tag
 }
 
 export async function updateNote(noteId: string, noteData: { title: string; content: string; tags?: string[] }, token: string) {
-  const r = await fetch(`${FABRIC_BASE_URL}/api/notes/${noteId}`, {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/notes/${noteId}`, {
     method: "PUT",
     headers: { ...authHeaders(token), "Content-Type": "application/json" },
     body: JSON.stringify(noteData),
@@ -76,7 +76,7 @@ export async function updateNote(noteId: string, noteData: { title: string; cont
 }
 
 export async function deleteNote(noteId: string, token: string) {
-  const r = await fetch(`${FABRIC_BASE_URL}/api/notes/${noteId}`, {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/notes/${noteId}`, {
     method: "DELETE",
     headers: authHeaders(token),
   });
@@ -85,7 +85,7 @@ export async function deleteNote(noteId: string, token: string) {
 }
 
 export async function getNote(noteId: string, token: string) {
-  const r = await fetch(`${FABRIC_BASE_URL}/api/notes/${noteId}`, {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/notes/${noteId}`, {
     headers: authHeaders(token),
     cache: "no-store"
   });
@@ -94,7 +94,7 @@ export async function getNote(noteId: string, token: string) {
 }
 
 export async function getMyNotes(userEmail: string, token: string) {
-  const r = await fetch(`${FABRIC_BASE_URL}/api/notes/user/${encodeURIComponent(userEmail)}`, {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/notes/user/${encodeURIComponent(userEmail)}`, {
     headers: authHeaders(token),
     cache: "no-store"
   });
