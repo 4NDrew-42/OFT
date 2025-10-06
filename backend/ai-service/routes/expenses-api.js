@@ -12,6 +12,7 @@ function isValidUUID(str) {
  * POST /api/expenses - Create new expense
  */
 router.post('/', async (req, res) => {
+  console.log("POST /api/expenses - Body:", JSON.stringify(req.body));
   const { user_email, amount, expense_date, category, merchant, description, payment_method, receipt_image_data, tags } = req.body;
   
   if (!user_email || !amount || !expense_date) {

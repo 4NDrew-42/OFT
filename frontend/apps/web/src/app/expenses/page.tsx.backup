@@ -173,64 +173,24 @@ export default function ExpensesPage() {
   
   async function handleSave() {
     setSaveError(null);
-    if (!sub) { 
-      setSaveError("Authentication required. Please log in."); 
-      return; 
-    }
-    
-    // Validate required fields
-    if (!expenseAmount || !expenseDate) { 
-      setSaveError("Amount and date are required fields."); 
-      return; 
-    }
-    
-    // Validate amount is a valid positive number
-    const amountNum = parseFloat(expenseAmount);
-    if (isNaN(amountNum)) {
-      setSaveError("Amount must be a valid number.");
-      return;
-    }
-    if (amountNum <= 0) {
-      setSaveError("Amount must be greater than zero.");
-      return;
-    }
+    if (!sub) { setSaveError("no_sub"); return; }
+    if (!expenseAmount || !expenseDate) { setSaveError("missing_required_fields"); return; }
     
     try {
       setSaveLoading(true);
       const token = await mintJWT(sub);
       
-      // Build expense data object - only include fields with actual values
-      const expenseData: any = {
+      const expenseData = {
         user_email: sub,
-        amount: amountNum,
-        expense_date: expenseDate
+        amount: parseFloat(expenseAmount),
+        expense_date: expenseDate,
+        category: expenseCategory || undefined,
+        merchant: expenseMerchant || undefined,
+        description: expenseDescription || undefined,
+        payment_method: expensePaymentMethod || undefined,
+        receipt_image_data: receiptPreview || undefined,
+        tags: expenseTags.length > 0 ? expenseTags : undefined
       };
-      
-      // Only add optional fields if they have values (avoid sending undefined)
-      if (expenseCategory && expenseCategory.trim()) {
-        expenseData.category = expenseCategory.trim();
-      }
-      if (expenseMerchant && expenseMerchant.trim()) {
-        expenseData.merchant = expenseMerchant.trim();
-      }
-      if (expenseDescription && expenseDescription.trim()) {
-        expenseData.description = expenseDescription.trim();
-      }
-      if (expensePaymentMethod && expensePaymentMethod.trim()) {
-        expenseData.payment_method = expensePaymentMethod.trim();
-      }
-      if (receiptPreview) {
-        expenseData.receipt_image_data = receiptPreview;
-      }
-      if (expenseTags.length > 0) {
-        expenseData.tags = expenseTags;
-      }
-      
-      // Debug logging
-      console.log("Saving expense:", {
-        isEdit: !!editingExpense,
-        payload: expenseData
-      });
       
       if (editingExpense) {
         await updateExpense(editingExpense.id, expenseData, token);
@@ -242,8 +202,7 @@ export default function ExpensesPage() {
       await loadSummary();
       closeEditor();
     } catch (err: any) {
-      console.error("Save expense error:", err);
-      setSaveError(err?.message || "Failed to save expense. Please try again.");
+      setSaveError(err?.message || "save_failed");
     } finally {
       setSaveLoading(false);
     }
