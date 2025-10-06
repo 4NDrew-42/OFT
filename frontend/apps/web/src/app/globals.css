@@ -1,69 +1,156 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* Force text colors in TipTap editor - override prose inherit */
-.ProseMirror {
-  color: rgb(17 24 39) !important; /* gray-900 */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
+  }
 }
 
-.dark .ProseMirror {
-  color: rgb(243 244 246) !important; /* gray-100 */
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
 
-.ProseMirror p,
-.ProseMirror h1,
-.ProseMirror h2,
-.ProseMirror h3,
-.ProseMirror li,
-.ProseMirror blockquote {
-  color: inherit !important;
-}
+/* ========================================
+   FORCE BLACK TEXT IN ALL MODALS AND INPUTS
+   ======================================== */
 
-.ProseMirror::placeholder {
-  color: rgb(156 163 175) !important; /* gray-400 */
-}
-
-.dark .ProseMirror::placeholder {
-  color: rgb(107 114 128) !important; /* gray-500 */
-}
-
-/* FORCE DARK BLUE TEXT IN ALL MODALS */
-.fixed.inset-0 > div {
-  color: rgb(30 58 138) !important; /* blue-900 */
-}
-
-.dark .fixed.inset-0 > div {
-  color: rgb(243 244 246) !important; /* gray-100 */
-}
-
-/* Force all text elements in modals */
+/* Modal text colors - DARK BLUE */
+.fixed.inset-0 > div,
 .fixed.inset-0 h1,
 .fixed.inset-0 h2,
 .fixed.inset-0 h3,
 .fixed.inset-0 label,
 .fixed.inset-0 p,
-.fixed.inset-0 span,
-.fixed.inset-0 div {
+.fixed.inset-0 span {
   color: rgb(30 58 138) !important; /* blue-900 */
 }
 
+.dark .fixed.inset-0 > div,
 .dark .fixed.inset-0 h1,
 .dark .fixed.inset-0 h2,
 .dark .fixed.inset-0 h3,
 .dark .fixed.inset-0 label,
 .dark .fixed.inset-0 p,
-.dark .fixed.inset-0 span,
-.dark .fixed.inset-0 div {
+.dark .fixed.inset-0 span {
   color: rgb(243 244 246) !important; /* gray-100 */
 }
 
-/* Force input text colors */
+/* TipTap Editor - FORCE BLACK TEXT */
+.ProseMirror,
+.ProseMirror *,
+.ProseMirror p,
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3,
+.ProseMirror li,
+.ProseMirror blockquote,
+.ProseMirror code,
+.ProseMirror strong,
+.ProseMirror em {
+  color: #000000 !important; /* Pure black */
+}
+
+.dark .ProseMirror,
+.dark .ProseMirror *,
+.dark .ProseMirror p,
+.dark .ProseMirror h1,
+.dark .ProseMirror h2,
+.dark .ProseMirror h3,
+.dark .ProseMirror li,
+.dark .ProseMirror blockquote,
+.dark .ProseMirror code,
+.dark .ProseMirror strong,
+.dark .ProseMirror em {
+  color: #FFFFFF !important; /* Pure white */
+}
+
+/* TipTap placeholder */
+.ProseMirror .is-editor-empty:first-child::before {
+  color: #6B7280 !important; /* gray-500 */
+}
+
+.dark .ProseMirror .is-editor-empty:first-child::before {
+  color: #9CA3AF !important; /* gray-400 */
+}
+
+/* ALL INPUT FIELDS - FORCE BLACK TEXT */
 .fixed.inset-0 input,
-.fixed.inset-0 textarea {
-  color: rgb(30 58 138) !important; /* blue-900 */
+.fixed.inset-0 textarea,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+textarea {
+  color: #000000 !important; /* Pure black */
   background-color: white !important;
 }
 
 .dark .fixed.inset-0 input,
-.dark .fixed.inset-0 textarea {
-  color: rgb(243 244 246) !important; /* gray-100 */
+.dark .fixed.inset-0 textarea,
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="search"],
+.dark textarea {
+  color: #FFFFFF !important; /* Pure white */
   background-color: rgb(31 41 55) !important; /* gray-800 */
+}
+
+/* Input placeholders */
+input::placeholder,
+textarea::placeholder {
+  color: #9CA3AF !important; /* gray-400 */
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #6B7280 !important; /* gray-500 */
 }
