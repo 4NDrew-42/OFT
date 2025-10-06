@@ -292,3 +292,185 @@ export async function getExpense(expenseId: string, token: string) {
   if (!r.ok) throw new Error(`Get expense error ${r.status}`);
   return r.json();
 }
+
+// ============================================================================
+// INCOME API FUNCTIONS
+// ============================================================================
+
+export async function getMyIncome(userEmail: string, token: string, filters?: {
+  category?: string;
+  payment_method?: string;
+  start_date?: string;
+  end_date?: string;
+  is_recurring?: boolean;
+}) {
+  let url = `https://fabric.sidekickportal.com/api/income/user/${encodeURIComponent(userEmail)}`;
+  if (filters) {
+    const params = new URLSearchParams();
+    if (filters.category) params.append('category', filters.category);
+    if (filters.payment_method) params.append('payment_method', filters.payment_method);
+    if (filters.start_date) params.append('start_date', filters.start_date);
+    if (filters.end_date) params.append('end_date', filters.end_date);
+    if (filters.is_recurring !== undefined) params.append('is_recurring', String(filters.is_recurring));
+    if (params.toString()) url += `?${params.toString()}`;
+  }
+  const r = await fetch(url, { headers: authHeaders(token) });
+  if (!r.ok) throw new Error(`Get income error ${r.status}`);
+  return r.json();
+}
+
+export async function getIncomeSummary(userEmail: string, token: string, filters?: {
+  start_date?: string;
+  end_date?: string;
+}) {
+  let url = `https://fabric.sidekickportal.com/api/income/summary/${encodeURIComponent(userEmail)}`;
+  if (filters) {
+    const params = new URLSearchParams();
+    if (filters.start_date) params.append('start_date', filters.start_date);
+    if (filters.end_date) params.append('end_date', filters.end_date);
+    if (params.toString()) url += `?${params.toString()}`;
+  }
+  const r = await fetch(url, { headers: authHeaders(token) });
+  if (!r.ok) throw new Error(`Get income summary error ${r.status}`);
+  return r.json();
+}
+
+export async function createIncome(income: {
+  user_email: string;
+  amount: number;
+  income_date: string;
+  source?: string;
+  category?: string;
+  description?: string;
+  payment_method?: string;
+  is_recurring?: boolean;
+  recurrence_pattern?: string;
+  recurrence_start_date?: string;
+  recurrence_end_date?: string;
+  tags?: string[];
+}, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/income`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(income)
+  });
+  if (!r.ok) throw new Error(`Create income error ${r.status}`);
+  return r.json();
+}
+
+export async function updateIncome(incomeId: string, updates: {
+  amount?: number;
+  income_date?: string;
+  source?: string;
+  category?: string;
+  description?: string;
+  payment_method?: string;
+  is_recurring?: boolean;
+  recurrence_pattern?: string;
+  recurrence_start_date?: string;
+  recurrence_end_date?: string;
+  tags?: string[];
+}, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/income/${incomeId}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(updates)
+  });
+  if (!r.ok) throw new Error(`Update income error ${r.status}`);
+  return r.json();
+}
+
+export async function deleteIncome(incomeId: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/income/${incomeId}`, {
+    method: "DELETE",
+    headers: authHeaders(token)
+  });
+  if (!r.ok) throw new Error(`Delete income error ${r.status}`);
+  return r.json();
+}
+
+export async function getIncome(incomeId: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/income/${incomeId}`, {
+    headers: authHeaders(token)
+  });
+  if (!r.ok) throw new Error(`Get income error ${r.status}`);
+  return r.json();
+}
+
+// ============================================================================
+// BUDGETS API FUNCTIONS
+// ============================================================================
+
+export async function getMyBudgets(userEmail: string, token: string, filters?: {
+  is_active?: boolean;
+}) {
+  let url = `https://fabric.sidekickportal.com/api/budgets/user/${encodeURIComponent(userEmail)}`;
+  if (filters?.is_active !== undefined) {
+    url += `?is_active=${filters.is_active}`;
+  }
+  const r = await fetch(url, { headers: authHeaders(token) });
+  if (!r.ok) throw new Error(`Get budgets error ${r.status}`);
+  return r.json();
+}
+
+export async function getBudgetStatus(userEmail: string, token: string, month?: number, year?: number) {
+  let url = `https://fabric.sidekickportal.com/api/budgets/status/${encodeURIComponent(userEmail)}`;
+  const params = new URLSearchParams();
+  if (month) params.append('month', String(month));
+  if (year) params.append('year', String(year));
+  if (params.toString()) url += `?${params.toString()}`;
+  const r = await fetch(url, { headers: authHeaders(token) });
+  if (!r.ok) throw new Error(`Get budget status error ${r.status}`);
+  return r.json();
+}
+
+export async function createBudget(budget: {
+  user_email: string;
+  category: string;
+  monthly_limit: number;
+  start_date: string;
+  end_date?: string;
+  alert_threshold?: number;
+}, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/budgets`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(budget)
+  });
+  if (!r.ok) throw new Error(`Create budget error ${r.status}`);
+  return r.json();
+}
+
+export async function updateBudget(budgetId: string, updates: {
+  category?: string;
+  monthly_limit?: number;
+  start_date?: string;
+  end_date?: string;
+  alert_threshold?: number;
+  is_active?: boolean;
+}, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/budgets/${budgetId}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(updates)
+  });
+  if (!r.ok) throw new Error(`Update budget error ${r.status}`);
+  return r.json();
+}
+
+export async function deleteBudget(budgetId: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/budgets/${budgetId}`, {
+    method: "DELETE",
+    headers: authHeaders(token)
+  });
+  if (!r.ok) throw new Error(`Delete budget error ${r.status}`);
+  return r.json();
+}
+
+export async function getBudget(budgetId: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/budgets/${budgetId}`, {
+    headers: authHeaders(token)
+  });
+  if (!r.ok) throw new Error(`Get budget error ${r.status}`);
+  return r.json();
+}

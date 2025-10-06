@@ -97,6 +97,8 @@ app.use("/api/notes", require("./routes/notes-api"));
 app.use("/api/calendar", require("./routes/calendar-api"));
 
 app.use("/api/expenses", require("./routes/expenses-api"));
+app.use("/api/income", require("./routes/income-api"));
+app.use("/api/budgets", require("./routes/budgets-api"));
 
 app.use((err, req, res, next) => {
   console.error('Unhandled AI service error:', err);
