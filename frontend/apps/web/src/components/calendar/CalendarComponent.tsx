@@ -242,7 +242,7 @@ export default function CalendarComponent({
       <div className="flex items-center justify-between mb-4 p-4 bg-card rounded-lg border">
         <div className="flex items-center gap-2">
           <CalendarIcon size={24} />
-          <h2 className="text-xl font-semibold">Calendar</h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Calendar</h2>
         </div>
 
         {/* View Toggle */}
@@ -324,7 +324,7 @@ export default function CalendarComponent({
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-xl font-semibold">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                 {modalMode === "create" ? "New Event" : "Edit Event"}
               </h2>
               <button onClick={closeModal} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
@@ -336,7 +336,7 @@ export default function CalendarComponent({
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {/* Title */}
               <div>
-                <label className="block text-sm font-medium mb-1">Title *</label>
+                <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Title *</label>
                 <input
                   type="text"
                   value={formTitle}
@@ -349,7 +349,7 @@ export default function CalendarComponent({
               {/* Date/Time */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Start *</label>
+                  <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Start *</label>
                   <input
                     type="datetime-local"
                     value={formStart}
@@ -358,7 +358,7 @@ export default function CalendarComponent({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">End *</label>
+                  <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">End *</label>
                   <input
                     type="datetime-local"
                     value={formEnd}
@@ -382,7 +382,7 @@ export default function CalendarComponent({
 
               {/* Location */}
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">
                   <MapPin size={14} className="inline mr-1" />
                   Location
                 </label>
@@ -397,7 +397,7 @@ export default function CalendarComponent({
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium mb-1">Description</label>
+                <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Description</label>
                 <textarea
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
@@ -409,7 +409,7 @@ export default function CalendarComponent({
 
               {/* Tags */}
               <div>
-                <label className="block text-sm font-medium mb-1">
+                <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">
                   <Tag size={14} className="inline mr-1" />
                   Tags
                 </label>
@@ -443,7 +443,7 @@ export default function CalendarComponent({
 
               {/* Color */}
               <div>
-                <label className="block text-sm font-medium mb-1">Color</label>
+                <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Color</label>
                 <input
                   type="color"
                   value={formColor}
@@ -472,7 +472,7 @@ export default function CalendarComponent({
               <div className="flex gap-2">
                 <button
                   onClick={closeModal}
-                  className="rounded border px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="rounded border px-4 py-2 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
                 >
                   Cancel
                 </button>

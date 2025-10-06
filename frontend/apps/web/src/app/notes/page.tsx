@@ -190,7 +190,7 @@ export default function NotesPage() {
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-xl font-semibold">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                 {editingNote ? 'Edit Note' : 'New Note'}
               </h2>
               <button onClick={closeEditor} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
@@ -202,7 +202,7 @@ export default function NotesPage() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {/* Title */}
               <div>
-                <label className="block text-sm font-medium mb-1">Title</label>
+                <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Title</label>
                 <input
                   type="text"
                   value={noteTitle}
@@ -214,7 +214,7 @@ export default function NotesPage() {
 
               {/* Tags */}
               <div>
-                <label className="block text-sm font-medium mb-1">Tags</label>
+                <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Tags</label>
                 <div className="flex gap-2 mb-2">
                   <input
                     type="text"
@@ -249,7 +249,7 @@ export default function NotesPage() {
 
               {/* Rich Text Editor */}
               <div>
-                <label className="block text-sm font-medium mb-1">Content</label>
+                <label className="block text-sm font-medium mb-1 text-gray-900 dark:text-gray-100">Content</label>
                 <RichTextEditor
                   content={noteContent}
                   onChange={setNoteContent}
@@ -264,7 +264,7 @@ export default function NotesPage() {
             <div className="flex items-center justify-end gap-2 p-4 border-t">
               <button
                 onClick={closeEditor}
-                className="rounded border px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+                className="rounded border px-4 py-2 text-sm text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 Cancel
               </button>
