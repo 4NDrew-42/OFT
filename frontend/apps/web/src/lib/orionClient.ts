@@ -251,13 +251,22 @@ export async function createExpense(expense: {
   recurrence_start_date?: string;
   recurrence_end_date?: string;
 }, token: string) {
+  console.log('🔍 [orionClient] createExpense called with payload:', JSON.stringify(expense, null, 2));
+  
   const r = await fetch(`https://fabric.sidekickportal.com/api/expenses`, {
     method: "POST",
-    headers: authHeaders(token),
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
     body: JSON.stringify(expense)
   });
-  if (!r.ok) throw new Error(`Create expense error ${r.status}`);
-  return r.json();
+  
+  console.log('🔍 [orionClient] Response status:', r.status);
+  
+  if (!r.ok) {
+    const errorBody = await r.text();
+    console.error('🚨 [orionClient] Backend error response:', errorBody);
+    console.error('🚨 [orionClient] Response headers:', Object.fromEntries(r.headers.entries()));
+    throw new Error(`Create expense error ${r.status}: ${errorBody}`);
+  }
 }
 
 export async function updateExpense(expenseId: string, updates: Partial<{
@@ -276,7 +285,7 @@ export async function updateExpense(expenseId: string, updates: Partial<{
 }>, token: string) {
   const r = await fetch(`https://fabric.sidekickportal.com/api/expenses/${expenseId}`, {
     method: "PUT",
-    headers: authHeaders(token),
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
     body: JSON.stringify(updates)
   });
   if (!r.ok) throw new Error(`Update expense error ${r.status}`);
