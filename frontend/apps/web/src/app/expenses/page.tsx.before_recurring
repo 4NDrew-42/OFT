@@ -78,12 +78,6 @@ export default function ExpensesPage() {
   const [expenseDescription, setExpenseDescription] = useState("");
   const [expensePaymentMethod, setExpensePaymentMethod] = useState("");
   const [expenseTags, setExpenseTags] = useState<string[]>([]);
-  
-  // Recurring transaction state
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [recurrencePattern, setRecurrencePattern] = useState("monthly");
-  const [recurrenceStartDate, setRecurrenceStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [recurrenceEndDate, setRecurrenceEndDate] = useState("");
   const [tagInput, setTagInput] = useState("");
   const [saveLoading, setSaveLoading] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -163,10 +157,6 @@ export default function ExpensesPage() {
       setExpenseDescription("");
       setExpensePaymentMethod("");
       setExpenseTags([]);
-      setIsRecurring(false);
-      setRecurrencePattern("monthly");
-      setRecurrenceStartDate(new Date().toISOString().split('T')[0]);
-      setRecurrenceEndDate("");
       setReceiptPreview(null);
     }
     setFile(null);
@@ -234,14 +224,6 @@ export default function ExpensesPage() {
       }
       if (expenseTags.length > 0) {
         expenseData.tags = expenseTags;
-      }
-      if (isRecurring) {
-        expenseData.is_recurring = true;
-        expenseData.recurrence_pattern = recurrencePattern;
-        expenseData.recurrence_start_date = recurrenceStartDate;
-        if (recurrenceEndDate) {
-          expenseData.recurrence_end_date = recurrenceEndDate;
-        }
       }
       
       // Debug logging
@@ -635,71 +617,6 @@ export default function ExpensesPage() {
                     rows={3}
                     className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
                   />
-                
-                {/* Recurring Transaction */}
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-                    <input
-                      type="checkbox"
-                      checked={isRecurring}
-                      onChange={(e) => setIsRecurring(e.target.checked)}
-                      className="rounded border-gray-300 dark:border-gray-600"
-                    />
-                    Make this a recurring expense
-                  </label>
-                  
-                  {isRecurring && (
-                    <div className="space-y-3 pl-6 border-l-2 border-blue-500">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
-                          Recurrence Pattern
-                        </label>
-                        <select
-                          value={recurrencePattern}
-                          onChange={(e) => setRecurrencePattern(e.target.value)}
-                          className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
-                        >
-                          <option value="daily">Daily</option>
-                          <option value="weekly">Weekly</option>
-                          <option value="biweekly">Bi-weekly</option>
-                          <option value="monthly">Monthly</option>
-                          <option value="quarterly">Quarterly</option>
-                          <option value="yearly">Yearly</option>
-                        </select>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
-                            Start Date
-                          </label>
-                          <input
-                            type="date"
-                            value={recurrenceStartDate}
-                            onChange={(e) => setRecurrenceStartDate(e.target.value)}
-                            className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
-                            End Date (Optional)
-                          </label>
-                          <input
-                            type="date"
-                            value={recurrenceEndDate}
-                            onChange={(e) => setRecurrenceEndDate(e.target.value)}
-                            className="w-full rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-                        This expense will repeat {recurrencePattern} starting from {new Date(recurrenceStartDate).toLocaleDateString()}
-                        {recurrenceEndDate && ` until ${new Date(recurrenceEndDate).toLocaleDateString()}`}
-                      </div>
-                    </div>
-                  )}
-                </div>
                 </div>
                 
                 <div>
