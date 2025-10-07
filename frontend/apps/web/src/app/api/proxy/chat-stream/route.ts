@@ -12,22 +12,22 @@ function estimateRequiredTokens(query: string, history: Array<{ role: string; co
   const historyLength = history.length;
   
   // Simple factual questions with no history
-  if (wordCount < 10 && !hasDetailKeywords && historyLength === 0) return 500;
+  if (wordCount < 10 && !hasDetailKeywords && historyLength === 0) return 4000;  // Increased from 500
   
   // Follow-up questions in conversation
-  if (historyLength > 0 && wordCount < 15) return 1000;
+  if (historyLength > 0 && wordCount < 15) return 6000;  // Increased from 1000
   
   // Medium complexity questions
-  if (wordCount < 20 && !hasDetailKeywords) return 2000;
+  if (wordCount < 20 && !hasDetailKeywords) return 8000;  // Increased from 2000
   
   // Detailed explanations requested
-  if (hasDetailKeywords) return 10000;
+  if (hasDetailKeywords) return 16000;  // Increased from 10000
   
   // Temporal queries (need to search history)
-  if (hasTemporalKeywords) return 5000;
+  if (hasTemporalKeywords) return 12000;  // Increased from 5000
   
   // Default for complex queries
-  return 5000;
+  return 10000;  // Increased from 5000
 }
 
 export async function GET(req: Request) {
