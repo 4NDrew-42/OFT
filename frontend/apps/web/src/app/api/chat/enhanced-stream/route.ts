@@ -99,7 +99,7 @@ async function streamDeepSeekResponse(messages: ChatMessage[], onChunk: (chunk: 
       messages,
       stream: true,
       temperature: 0.7,
-      max_tokens: 2048,
+      max_tokens: 8000,  // Increased from 2048 to match backend quality
     }),
   });
 
@@ -167,7 +167,7 @@ async function streamGeminiResponse(messages: ChatMessage[], onChunk: (chunk: st
       contents,
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 2048,
+        maxOutputTokens: 8000,  // Increased from 2048 to match backend quality
       },
     }),
   });
