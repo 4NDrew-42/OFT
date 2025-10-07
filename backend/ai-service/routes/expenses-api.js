@@ -13,7 +13,21 @@ function isValidUUID(str) {
  */
 router.post('/', async (req, res) => {
   console.log("POST /api/expenses - Body:", JSON.stringify(req.body));
-  const { user_email, amount, expense_date, category, merchant, description, payment_method, receipt_image_data, tags } = req.body;
+  const { 
+    user_email, 
+    amount, 
+    expense_date, 
+    category, 
+    merchant, 
+    description, 
+    payment_method, 
+    receipt_image_data, 
+    tags,
+    is_recurring,
+    recurrence_pattern,
+    recurrence_start_date,
+    recurrence_end_date
+  } = req.body;
   
   if (!user_email || !amount || !expense_date) {
     return res.status(400).json({ error: 'Missing required fields: user_email, amount, expense_date' });
@@ -21,8 +35,22 @@ router.post('/', async (req, res) => {
   
   try {
     const query = `
-      INSERT INTO expenses (user_email, amount, expense_date, category, merchant, description, payment_method, receipt_image_data, tags)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO expenses (
+        user_email, 
+        amount, 
+        expense_date, 
+        category, 
+        merchant, 
+        description, 
+        payment_method, 
+        receipt_image_data, 
+        tags,
+        is_recurring,
+        recurrence_pattern,
+        recurrence_start_date,
+        recurrence_end_date
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *
     `;
     
@@ -35,7 +63,11 @@ router.post('/', async (req, res) => {
       description || null,
       payment_method || null,
       receipt_image_data || null,
-      tags || []
+      tags || [],
+      is_recurring || false,
+      recurrence_pattern || null,
+      recurrence_start_date || null,
+      recurrence_end_date || null
     ];
     
     const result = await pool.query(query, values);
@@ -214,8 +246,10 @@ router.get('/:id', async (req, res) => {
   }
   
   try {
-    const query = 'SELECT * FROM expenses WHERE id = $1';
-    const result = await pool.query(query, [id]);
+    const result = await pool.query(
+      'SELECT * FROM expenses WHERE id = $1',
+      [id]
+    );
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Expense not found' });
@@ -239,7 +273,20 @@ router.get('/:id', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
   const { id } = req.params;
-  const { amount, expense_date, category, merchant, description, payment_method, receipt_image_data, tags } = req.body;
+  const { 
+    amount, 
+    expense_date, 
+    category, 
+    merchant, 
+    description, 
+    payment_method, 
+    receipt_image_data, 
+    tags,
+    is_recurring,
+    recurrence_pattern,
+    recurrence_start_date,
+    recurrence_end_date
+  } = req.body;
   
   if (!isValidUUID(id)) {
     return res.status(400).json({ error: 'Invalid expense ID format' });
@@ -298,11 +345,37 @@ router.put('/:id', async (req, res) => {
       paramIndex++;
     }
     
+    if (is_recurring !== undefined) {
+      updates.push(`is_recurring = $${paramIndex}`);
+      values.push(is_recurring);
+      paramIndex++;
+    }
+    
+    if (recurrence_pattern !== undefined) {
+      updates.push(`recurrence_pattern = $${paramIndex}`);
+      values.push(recurrence_pattern);
+      paramIndex++;
+    }
+    
+    if (recurrence_start_date !== undefined) {
+      updates.push(`recurrence_start_date = $${paramIndex}`);
+      values.push(recurrence_start_date);
+      paramIndex++;
+    }
+    
+    if (recurrence_end_date !== undefined) {
+      updates.push(`recurrence_end_date = $${paramIndex}`);
+      values.push(recurrence_end_date);
+      paramIndex++;
+    }
+    
     if (updates.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
     
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
     values.push(id);
+    
     const query = `
       UPDATE expenses
       SET ${updates.join(', ')}
@@ -340,8 +413,10 @@ router.delete('/:id', async (req, res) => {
   }
   
   try {
-    const query = 'DELETE FROM expenses WHERE id = $1 RETURNING id';
-    const result = await pool.query(query, [id]);
+    const result = await pool.query(
+      'DELETE FROM expenses WHERE id = $1 RETURNING *',
+      [id]
+    );
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Expense not found' });
@@ -349,7 +424,8 @@ router.delete('/:id', async (req, res) => {
     
     res.json({
       success: true,
-      message: 'Expense deleted successfully'
+      message: 'Expense deleted successfully',
+      expense: result.rows[0]
     });
   } catch (error) {
     console.error('Delete expense error:', error);
