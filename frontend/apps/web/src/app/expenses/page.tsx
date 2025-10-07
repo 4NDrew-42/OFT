@@ -212,7 +212,7 @@ export default function ExpensesPage() {
       // Build expense data object - only include fields with actual values
       const expenseData: any = {
         user_email: sub,
-        amount: amountNum,
+        amount: Math.round(amountNum * 100),  // Convert dollars to cents
         expense_date: expenseDate
       };
       

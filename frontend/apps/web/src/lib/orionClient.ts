@@ -246,6 +246,10 @@ export async function createExpense(expense: {
   payment_method?: string;
   receipt_image_data?: string;
   tags?: string[];
+  is_recurring?: boolean;
+  recurrence_pattern?: string;
+  recurrence_start_date?: string;
+  recurrence_end_date?: string;
 }, token: string) {
   const r = await fetch(`https://fabric.sidekickportal.com/api/expenses`, {
     method: "POST",
@@ -265,6 +269,10 @@ export async function updateExpense(expenseId: string, updates: Partial<{
   payment_method: string;
   receipt_image_data: string;
   tags: string[];
+  is_recurring: boolean;
+  recurrence_pattern: string;
+  recurrence_start_date: string;
+  recurrence_end_date: string;
 }>, token: string) {
   const r = await fetch(`https://fabric.sidekickportal.com/api/expenses/${expenseId}`, {
     method: "PUT",

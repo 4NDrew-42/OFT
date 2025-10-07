@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Expenses API E2E Test Suite</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    h2 {
+      color: #555;
+      margin-top: 30px;
+    }
+    .test-section {
+      margin: 20px 0;
+      padding: 20px;
+      background: #f9f9f9;
+      border-left: 4px solid #2196F3;
+      border-radius: 4px;
+    }
+    .test-result {
+      margin: 10px 0;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+    }
+    .test-result.success {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+    }
+    .test-result.error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+    .test-result.info {
+      background: #d1ecf1;
+      border: 1px solid #bee5eb;
+      color: #0c5460;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    pre {
+      background: #272822;
+      color: #f8f8f2;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+    .summary {
+      margin-top: 30px;
+      padding: 20px;
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      border-radius: 4px;
+    }
+    .summary h3 {
+      margin-top: 0;
+      color: #856404;
+    }
+    .stats {
+      display: flex;
+      gap: 20px;
+      margin-top: 15px;
+    }
+    .stat {
+      flex: 1;
+      padding: 15px;
+      background: white;
+      border-radius: 4px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 32px;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+    .stat-label {
+      color: #666;
+      font-size: 14px;
+    }
+    .pass { color: #28a745; }
+    .fail { color: #dc3545; }
+    .total { color: #007bff; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 Expenses API E2E Test Suite</h1>
+    <p><strong>Purpose:</strong> Diagnose frontend-backend integration issues causing 400 errors</p>
+    
+    <div class="test-section">
+      <h2>Configuration</h2>
+      <label>
+        API Base URL:
+        <input type="text" id="apiUrl" value="https://fabric.sidekickportal.com" style="width: 400px; padding: 8px; margin-left: 10px;">
+      </label>
+      <br><br>
+      <label>
+        User Email:
+        <input type="text" id="userEmail" value="test@example.com" style="width: 400px; padding: 8px; margin-left: 10px;">
+      </label>
+      <br><br>
+      <label>
+        <input type="checkbox" id="useAuth"> Use Authentication (requires JWT token)
+      </label>
+    </div>
+
+    <div class="test-section">
+      <h2>Test Controls</h2>
+      <button onclick="runAllTests()">▶️ Run All Tests</button>
+      <button onclick="runTest1()">Test 1: Simple Expense</button>
+      <button onclick="runTest2()">Test 2: With Optional Fields</button>
+      <button onclick="runTest3()">Test 3: Recurring Monthly</button>
+      <button onclick="runTest4()">Test 4: Recurring with End Date</button>
+      <button onclick="runTest5()">Test 5: Edge Cases</button>
+      <button onclick="clearResults()">🗑️ Clear Results</button>
+    </div>
+
+    <div id="results"></div>
+    
+    <div id="summary" class="summary" style="display: none;">
+      <h3>📊 Test Summary</h3>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value total" id="totalTests">0</div>
+          <div class="stat-label">Total Tests</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value pass" id="passedTests">0</div>
+          <div class="stat-label">Passed</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value fail" id="failedTests">0</div>
+          <div class="stat-label">Failed</div>
+        </div>
+      </div>
+      <div id="diagnosis" style="margin-top: 20px;"></div>
+    </div>
+  </div>
+
+  <script>
+    let testResults = [];
+    let totalTests = 0;
+    let passedTests = 0;
+    let failedTests = 0;
+
+    function getApiUrl() {
+      return document.getElementById('apiUrl').value;
+    }
+
+    function getUserEmail() {
+      return document.getElementById('userEmail').value;
+    }
+
+    function shouldUseAuth() {
+      return document.getElementById('useAuth').checked;
+    }
+
+    async function mintJWT(email) {
+      // Simplified JWT minting (matches frontend implementation)
+      const payload = {
+        email: email,
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24),
+      };
+      return btoa(JSON.stringify(payload));
+    }
+
+    function logResult(testName, success, details) {
+      const resultsDiv = document.getElementById('results');
+      const resultDiv = document.createElement('div');
+      resultDiv.className = `test-result ${success ? 'success' : 'error'}`;
+      
+      const icon = success ? '✅' : '❌';
+      const status = success ? 'PASS' : 'FAIL';
+      
+      resultDiv.innerHTML = `
+        <strong>${icon} ${testName} - ${status}</strong>
+        <pre>${JSON.stringify(details, null, 2)}</pre>
+      `;
+      
+      resultsDiv.appendChild(resultDiv);
+      
+      testResults.push({ testName, success, details });
+      totalTests++;
+      if (success) passedTests++;
+      else failedTests++;
+      
+      updateSummary();
+    }
+
+    function logInfo(message) {
+      const resultsDiv = document.getElementById('results');
+      const resultDiv = document.createElement('div');
+      resultDiv.className = 'test-result info';
+      resultDiv.innerHTML = `<strong>ℹ️ ${message}</strong>`;
+      resultsDiv.appendChild(resultDiv);
+    }
+
+    function updateSummary() {
+      document.getElementById('summary').style.display = 'block';
+      document.getElementById('totalTests').textContent = totalTests;
+      document.getElementById('passedTests').textContent = passedTests;
+      document.getElementById('failedTests').textContent = failedTests;
+      
+      // Generate diagnosis
+      if (failedTests > 0) {
+        const diagnosisDiv = document.getElementById('diagnosis');
+        diagnosisDiv.innerHTML = '<h4>🔍 Diagnosis:</h4>';
+        
+        const failedTestsList = testResults.filter(t => !t.success);
+        failedTestsList.forEach(test => {
+          const errorMsg = test.details.error || test.details.response?.error || 'Unknown error';
+          diagnosisDiv.innerHTML += `<p><strong>${test.testName}:</strong> ${errorMsg}</p>`;
+        });
+      }
+    }
+
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+      document.getElementById('summary').style.display = 'none';
+      testResults = [];
+      totalTests = 0;
+      passedTests = 0;
+      failedTests = 0;
+    }
+
+    async function makeRequest(testName, payload) {
+      const apiUrl = getApiUrl();
+      const useAuth = shouldUseAuth();
+      
+      logInfo(`${testName}: Sending request...`);
+      
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      if (useAuth) {
+        const token = await mintJWT(getUserEmail());
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      try {
+        const response = await fetch(`${apiUrl}/api/expenses`, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify(payload)
+        });
+        
+        const data = await response.json();
+        
+        const details = {
+          request: {
+            url: `${apiUrl}/api/expenses`,
+            method: 'POST',
+            headers: headers,
+            payload: payload
+          },
+          response: {
+            status: response.status,
+            statusText: response.statusText,
+            data: data
+          }
+        };
+        
+        if (response.ok) {
+          logResult(testName, true, details);
+        } else {
+          logResult(testName, false, details);
+        }
+        
+        return { success: response.ok, details };
+      } catch (error) {
+        const details = {
+          request: {
+            url: `${apiUrl}/api/expenses`,
+            method: 'POST',
+            headers: headers,
+            payload: payload
+          },
+          error: error.message
+        };
+        
+        logResult(testName, false, details);
+        return { success: false, details };
+      }
+    }
+
+    async function runTest1() {
+      logInfo('TEST 1: Simple Expense (Baseline)');
+      
+      const payload = {
+        user_email: getUserEmail(),
+        amount: 1000, // $10.00 in cents
+        expense_date: '2025-10-06',
+        category: 'Food & Dining'
+      };
+      
+      await makeRequest('Test 1: Simple Expense', payload);
+    }
+
+    async function runTest2() {
+      logInfo('TEST 2: Expense with All Optional Fields');
+      
+      const payload = {
+        user_email: getUserEmail(),
+        amount: 2500, // $25.00 in cents
+        expense_date: '2025-10-06',
+        category: 'Transportation',
+        merchant: 'Test Merchant',
+        description: 'Test description',
+        payment_method: 'credit_card',
+        tags: ['test', 'e2e']
+      };
+      
+      await makeRequest('Test 2: With Optional Fields', payload);
+    }
+
+    async function runTest3() {
+      logInfo('TEST 3: Recurring Expense (Monthly)');
+      
+      const payload = {
+        user_email: getUserEmail(),
+        amount: 5000, // $50.00 in cents
+        expense_date: '2025-10-06',
+        category: 'Utilities',
+        is_recurring: true,
+        recurrence_pattern: 'monthly',
+        recurrence_start_date: '2025-10-06'
+      };
+      
+      await makeRequest('Test 3: Recurring Monthly', payload);
+    }
+
+    async function runTest4() {
+      logInfo('TEST 4: Recurring Expense with End Date');
+      
+      const payload = {
+        user_email: getUserEmail(),
+        amount: 7500, // $75.00 in cents
+        expense_date: '2025-10-06',
+        category: 'Subscriptions',
+        is_recurring: true,
+        recurrence_pattern: 'monthly',
+        recurrence_start_date: '2025-10-06',
+        recurrence_end_date: '2025-12-31'
+      };
+      
+      await makeRequest('Test 4: Recurring with End Date', payload);
+    }
+
+    async function runTest5() {
+      logInfo('TEST 5: Edge Cases');
+      
+      // Test 5a: Minimum required fields only
+      const payload5a = {
+        user_email: getUserEmail(),
+        amount: 100,
+        expense_date: '2025-10-06'
+      };
+      await makeRequest('Test 5a: Minimum Fields', payload5a);
+      
+      // Test 5b: Recurring false explicitly
+      const payload5b = {
+        user_email: getUserEmail(),
+        amount: 200,
+        expense_date: '2025-10-06',
+        is_recurring: false
+      };
+      await makeRequest('Test 5b: Recurring False', payload5b);
+    }
+
+    async function runAllTests() {
+      clearResults();
+      logInfo('🚀 Starting E2E Test Suite...');
+      
+      await runTest1();
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      await runTest2();
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      await runTest3();
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      await runTest4();
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      await runTest5();
+      
+      logInfo('✨ Test suite complete!');
+    }
+
+    // Auto-run on load (optional)
+    // window.addEventListener('load', () => {
+    //   setTimeout(runAllTests, 1000);
+    // });
+  </script>
+</body>
+</html>
