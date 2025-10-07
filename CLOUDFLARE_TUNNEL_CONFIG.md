@@ -103,3 +103,13 @@ const corsOptions = {
 - **Problem**: fabric.sidekickportal.com was routing to port 8089 instead of 4001
 - **Fix**: Updated config.yml to route fabric.sidekickportal.com to http://localhost:4001
 - **Result**: CORS headers now properly passed from backend to frontend
+
+## Recent Changes
+
+### 2025-10-06: Chat Backend Deployment
+- **Service**: Chat backend deployed to ORACLE (192.168.50.77:3002)
+- **Update**: Changed orion-chat.sidekickportal.com routing from localhost:3002 to 192.168.50.77:3002
+- **Reason**: Chat service runs on ORACLE, tunnel runs on ORION-MEM
+- **Result**: https://orion-chat.sidekickportal.com now fully operational
+- **CORS**: Verified working for https://www.sidekickportal.com
+- **Endpoints**: Session management API fully functional
