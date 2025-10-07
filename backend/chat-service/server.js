@@ -1,0 +1,229 @@
+/**
+ * ORION-CORE Chat Backend Service
+ * 
+ * Provides session management endpoints for chat functionality
+ * Runs on port 3002 (ORACLE - 192.168.50.77)
+ * Accessible via: https://orion-chat.sidekickportal.com
+ * 
+ * Architecture:
+ * - Express.js REST API
+ * - PostgreSQL for persistence (ORION-MEM 192.168.50.79)
+ * - CORS enabled for sidekickportal.com domains
+ * - Rate limiting for API protection
+ */
+
+const express = require('express');
+const cors = require('cors');
+const morgan = require('morgan');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+
+const sessionsRouter = require('./routes/sessions-api');
+
+const app = express();
+const PORT = process.env.PORT || 3002;
+
+// ============================================================================
+// SECURITY MIDDLEWARE
+// ============================================================================
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  crossOriginEmbedderPolicy: false
+}));
+
+// ============================================================================
+// RATE LIMITING
+// ============================================================================
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // Limit each IP to 200 requests per 15 minutes
+  message: {
+    error: 'Too many requests from this IP, please try again later.',
+    retryAfter: '15 minutes'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/', limiter);
+
+// ============================================================================
+// CORS CONFIGURATION
+// ============================================================================
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3005',
+      'https://www.sidekickportal.com',
+      'https://sidekickportal.com',
+      /^https:\/\/.*\.vercel\.app$/,
+      /^https:\/\/.*\.trycloudflare\.com$/,
+      /^https:\/\/.*\.ngrok\.io$/,
+      /^https:\/\/.*\.sidekickportal\.com$/
+    ];
+
+    const isAllowed = allowedOrigins.some(pattern => {
+      if (typeof pattern === 'string') {
+        return origin === pattern;
+      } else {
+        return pattern.test(origin);
+      }
+    });
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-request-id'],
+  exposedHeaders: ['Content-Length', 'X-Request-Id'],
+  maxAge: 86400 // 24 hours
+};
+
+app.use(cors(corsOptions));
+
+// ============================================================================
+// BODY PARSING & LOGGING
+// ============================================================================
+
+app.use(express.json({ limit: '1mb' }));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+// ============================================================================
+// HEALTH CHECK ENDPOINT
+// ============================================================================
+
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    service: 'orion-chat-backend',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    database: 'postgresql://192.168.50.79:5432/orion_core'
+  });
+});
+
+app.get('/', (req, res) => {
+  res.json({
+    service: 'ORION-CORE Chat Backend',
+    version: '1.0.0',
+    endpoints: {
+      health: '/health',
+      sessions: {
+        create: 'POST /api/sessions/create',
+        list: 'GET /api/sessions/list?userId=xxx',
+        get: 'GET /api/sessions/:sessionId',
+        delete: 'POST /api/sessions/delete',
+        messages: 'GET /api/sessions/messages?sessionId=xxx',
+        saveMessage: 'POST /api/sessions/save-message'
+      }
+    },
+    documentation: 'https://github.com/4NDrew-42/ORION-CORE'
+  });
+});
+
+// ============================================================================
+// API ROUTES
+// ============================================================================
+
+app.use('/api/sessions', sessionsRouter);
+
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    error: 'Not Found',
+    message: `Cannot ${req.method} ${req.path}`,
+    availableEndpoints: [
+      'GET /health',
+      'GET /',
+      'POST /api/sessions/create',
+      'GET /api/sessions/list',
+      'GET /api/sessions/:sessionId',
+      'POST /api/sessions/delete',
+      'GET /api/sessions/messages',
+      'POST /api/sessions/save-message'
+    ]
+  });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled chat service error:', err);
+  
+  // CORS errors
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({
+      error: 'CORS Error',
+      message: 'Origin not allowed',
+      origin: req.headers.origin
+    });
+  }
+  
+  // Generic error
+  res.status(500).json({
+    error: 'Internal Server Error',
+    message: process.env.NODE_ENV === 'production' 
+      ? 'An unexpected error occurred' 
+      : err.message
+  });
+});
+
+// ============================================================================
+// START SERVER
+// ============================================================================
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log('');
+  console.log('╔════════════════════════════════════════════════════════════╗');
+  console.log('║  🚀 ORION-CORE Chat Backend Service                       ║');
+  console.log('╠════════════════════════════════════════════════════════════╣');
+  console.log(`║  Port:        ${PORT}                                          ║`);
+  console.log('║  Host:        0.0.0.0 (all interfaces)                     ║');
+  console.log('║  Database:    PostgreSQL @ 192.168.50.79:5432              ║');
+  console.log('║  Public URL:  https://orion-chat.sidekickportal.com        ║');
+  console.log('║  Health:      http://localhost:3002/health                 ║');
+  console.log('╠════════════════════════════════════════════════════════════╣');
+  console.log('║  Endpoints:                                                ║');
+  console.log('║    POST /api/sessions/create                               ║');
+  console.log('║    GET  /api/sessions/list?userId=xxx                      ║');
+  console.log('║    GET  /api/sessions/:sessionId                           ║');
+  console.log('║    POST /api/sessions/delete                               ║');
+  console.log('║    GET  /api/sessions/messages?sessionId=xxx               ║');
+  console.log('║    POST /api/sessions/save-message                         ║');
+  console.log('╚════════════════════════════════════════════════════════════╝');
+  console.log('');
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, shutting down gracefully...');
+  process.exit(0);
+});
