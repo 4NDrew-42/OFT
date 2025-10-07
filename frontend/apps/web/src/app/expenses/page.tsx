@@ -146,7 +146,7 @@ export default function ExpensesPage() {
   function openEditor(expense?: Expense) {
     if (expense) {
       setEditingExpense(expense);
-      setExpenseAmount(expense.amount.toString());
+      setExpenseAmount((parseFloat(expense.amount.toString()) / 100).toString());
       setExpenseDate(expense.expense_date);
       setExpenseCategory(expense.category || "");
       setExpenseMerchant(expense.merchant || "");
@@ -332,7 +332,7 @@ export default function ExpensesPage() {
     setExpenseTags(expenseTags.filter(t => t !== tag));
   }
   
-  const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount.toString()), 0);
+  const totalExpenses = expenses.reduce((sum, exp) => sum + parseFloat(exp.amount.toString()) / 100, 0);
   
   return (
     <main className="p-4 pb-24 max-w-screen-lg mx-auto">
@@ -430,7 +430,7 @@ export default function ExpensesPage() {
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                    ${parseFloat(expense.amount.toString()).toFixed(2)}
+                    ${(parseFloat(expense.amount.toString()) / 100).toFixed(2)}
                   </span>
                   {expense.category && (
                     <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded">
