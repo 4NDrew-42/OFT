@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAction } from '@/middleware/admin';
+import { buildInternalHeaders, resolveInternalUrl } from '@/lib/internal-api';
 
 export interface AccessRequest {
   id: string;
@@ -100,18 +101,31 @@ export async function POST(req: NextRequest) {
 
     // Store in ORION-CORE for persistence
     try {
-      const orionResponse = await fetch('/api/orion/store-memory', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: `access-request-${newRequest.id}`,
-          content: `ACCESS REQUEST: ${newRequest.email} requested access at ${newRequest.timestamp}`,
-          metadata: {
-            type: 'access_request',
-            ...newRequest
-          }
-        })
-      });
+      const storeUrl = resolveInternalUrl('/api/orion/store-memory', req);
+
+      if (!storeUrl) {
+        console.error('Failed to resolve ORION-CORE store-memory endpoint');
+      } else {
+        const orionResponse = await fetch(storeUrl, {
+          method: 'POST',
+          headers: buildInternalHeaders(req, {
+            'Content-Type': 'application/json'
+          }),
+          body: JSON.stringify({
+            id: `access-request-${newRequest.id}`,
+            content: `ACCESS REQUEST: ${newRequest.email} requested access at ${newRequest.timestamp}`,
+            metadata: {
+              type: 'access_request',
+              ...newRequest
+            }
+          })
+        });
+
+        if (!orionResponse.ok) {
+          const details = await orionResponse.text().catch(() => orionResponse.statusText);
+          console.error('Failed to store access request in ORION-CORE:', details);
+        }
+      }
     } catch (orionError) {
       console.error('Failed to store in ORION-CORE:', orionError);
     }
@@ -173,20 +187,33 @@ export async function PATCH(req: NextRequest) {
 
           // For now, we'll store the approval in ORION-CORE
           try {
-            await fetch('/api/orion/store-memory', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                id: `approved-user-${request.email}`,
-                content: `APPROVED USER: ${request.email} approved by ${adminEmail} at ${request.reviewedAt}`,
-                metadata: {
-                  type: 'approved_user',
-                  email: request.email,
-                  approvedBy: adminEmail,
-                  approvedAt: request.reviewedAt
-                }
-              })
-            });
+            const storeUrl = resolveInternalUrl('/api/orion/store-memory', req);
+
+            if (!storeUrl) {
+              console.error('Failed to resolve ORION-CORE store-memory endpoint');
+            } else {
+              const approvalResponse = await fetch(storeUrl, {
+                method: 'POST',
+                headers: buildInternalHeaders(req, {
+                  'Content-Type': 'application/json'
+                }),
+                body: JSON.stringify({
+                  id: `approved-user-${request.email}`,
+                  content: `APPROVED USER: ${request.email} approved by ${adminEmail} at ${request.reviewedAt}`,
+                  metadata: {
+                    type: 'approved_user',
+                    email: request.email,
+                    approvedBy: adminEmail,
+                    approvedAt: request.reviewedAt
+                  }
+                })
+              });
+
+              if (!approvalResponse.ok) {
+                const details = await approvalResponse.text().catch(() => approvalResponse.statusText);
+                console.error('Failed to store approval in ORION-CORE:', details);
+              }
+            }
           } catch (orionError) {
             console.error('Failed to store approval in ORION-CORE:', orionError);
           }

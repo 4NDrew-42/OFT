@@ -555,6 +555,9 @@ Day 7
 
 ## 18) Change Log
 
+- **v0.4.1 (security hardening & logging)**: Normalized internal fetches to use absolute URLs with propagated auth headers so admin audit trails persist, clamped ORION similarity `topK` to ≤25, and replaced the browser control extension's hard-coded secret with runtime UUID generation. Lint run still surfaces legacy hook dependency warnings that predate this pass; track separately.
+  - **Completion Query:** What remains to guarantee admin audit trails persist beyond in-memory storage (e.g., database or ORION memory confirmation)?
+
 - **v0.4 (ORION-CORE Integration Analysis)**: Discovered full ORION-CORE frontend at http://192.168.50.79:3002/ with sophisticated glass panel UI, dual chat systems (Enhanced Chat + Intelligent Chat), Gemini 2.5 Flash integration, and 245 RAG memories across 20 categories. Updated PM with mobile recreation requirements, new API specifications for intelligent chat system, RAG integration, and system monitoring. Timeline extended to 2-3 weeks for feature parity implementation. Next: comprehensive backend team prompt and mobile UI development.
 
 - v0.3.1 (incident): Production DNS/ingress degraded — fabric.sidekickportal.com does not resolve externally. Frontend proxy functions deployed and invoked from Vercel, but upstream returns 404/upstream_error due to unreachable Fabric Bridge. Action: restore Cloudflare tunnel ingress mapping (fabric.sidekickportal.com → http://localhost:8089), validate, restart tunnel, then re‑run prod smokes. Pending: confirm Vercel envs present (ORION_SHARED_JWT_SECRET, ORION_SHARED_JWT_ISS, ORION_SHARED_JWT_AUD, NEXT_PUBLIC_ORION_API_URL) and redeploy.
@@ -564,4 +567,3 @@ Day 7
 - v0.2 (backend contracts): added Backend Integration Requirements Analysis (§3a) and Backend Contracts (§3b); aligned SSE spec (GET /api/chat-streaming), CORS, JWT auth, OCR stub, vector limits, rate limits; awaiting backend confirmations (tunnel domain, JWT claims, optional POST pre-step).
 
 - v0.1 (planning): decisions locked; task list created; awaiting backend/advisor confirmations (see §12–13)
-

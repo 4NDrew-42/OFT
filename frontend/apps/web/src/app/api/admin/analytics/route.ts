@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAction } from '@/middleware/admin';
+import { buildInternalHeaders, resolveInternalUrl } from '@/lib/internal-api';
 
 export interface AnalyticsData {
   userActivity: {
@@ -157,24 +158,36 @@ export async function GET(req: NextRequest) {
 
         // Try to get real ORION-CORE data
         try {
-          const orionResponse = await fetch('/api/proxy/system-metrics', {
-            headers: {
-              'Authorization': `Bearer ${process.env.ORION_SHARED_JWT_SECRET}`,
-            }
-          });
+          const metricsUrl = resolveInternalUrl('/api/proxy/system-metrics', req);
 
-          if (orionResponse.ok) {
-            const orionData = await orionResponse.json();
-            if (orionData.success && orionData.data) {
-              // Merge real ORION-CORE data with mock data
-              analyticsData.orionCore.nodes = orionData.data.map((node: any) => ({
-                name: node.name,
-                status: node.status === 'online' ? 'online' : 'offline',
-                cpuUsage: node.metrics?.cpuUsage || 0,
-                memoryUsage: node.metrics?.memoryUsage || 0,
-                uptime: node.uptime || 0,
-                requestCount: Math.floor(Math.random() * 5000) + 1000
-              }));
+          if (!metricsUrl) {
+            console.error('Failed to resolve ORION-CORE system metrics endpoint');
+          } else {
+            const headersInit: HeadersInit = {};
+            if (process.env.ORION_SHARED_JWT_SECRET) {
+              headersInit['Authorization'] = `Bearer ${process.env.ORION_SHARED_JWT_SECRET}`;
+            }
+
+            const orionResponse = await fetch(metricsUrl, {
+              headers: buildInternalHeaders(req, headersInit)
+            });
+
+            if (orionResponse.ok) {
+              const orionData = await orionResponse.json();
+              if (orionData.success && orionData.data) {
+                // Merge real ORION-CORE data with mock data
+                analyticsData.orionCore.nodes = orionData.data.map((node: any) => ({
+                  name: node.name,
+                  status: node.status === 'online' ? 'online' : 'offline',
+                  cpuUsage: node.metrics?.cpuUsage || 0,
+                  memoryUsage: node.metrics?.memoryUsage || 0,
+                  uptime: node.uptime || 0,
+                  requestCount: Math.floor(Math.random() * 5000) + 1000
+                }));
+              }
+            } else {
+              const details = await orionResponse.text().catch(() => orionResponse.statusText);
+              console.error('Failed to fetch ORION-CORE system metrics:', details);
             }
           }
         } catch (orionError) {

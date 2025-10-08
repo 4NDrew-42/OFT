@@ -1,6 +1,8 @@
 import { getServerSession } from "next-auth/next";
 import { NextRequest } from "next/server";
 
+import { buildInternalHeaders, resolveInternalUrl } from "@/lib/internal-api";
+
 // Admin email addresses - only these users have admin privileges
 const ADMIN_EMAILS = [
   "jamesandrewklein@gmail.com",
@@ -135,9 +137,20 @@ export async function logAdminAction(
   
   // For now, we'll store in ORION-CORE memory
   try {
-    const response = await fetch('/api/admin/audit-log', {
+    const auditUrl = resolveInternalUrl('/api/admin/audit-log', req);
+
+    if (!auditUrl) {
+      console.error('Failed to resolve base URL for admin audit logging');
+      return;
+    }
+
+    const headers = buildInternalHeaders(req, {
+      'Content-Type': 'application/json'
+    });
+
+    const response = await fetch(auditUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(auditEntry)
     });
     

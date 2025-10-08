@@ -9,6 +9,17 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { API_BASE_URL, ORION_VECTOR_URL } from '@/lib/env';
 
+const MAX_TOP_K = 25;
+
+const sanitizeLimit = (limit: number | undefined, fallback: number): number => {
+  if (typeof limit !== 'number' || Number.isNaN(limit)) {
+    return fallback;
+  }
+
+  const normalized = Math.floor(limit);
+  return Math.min(Math.max(normalized, 1), MAX_TOP_K);
+};
+
 interface SimilarProduct {
   id: string;
   title: string;
@@ -68,6 +79,11 @@ export const useOrionSimilarity = (enabled: boolean = true) => {
     setError(null);
 
     try {
+      const topK = sanitizeLimit(options.limit, 8);
+      if (options.limit !== undefined && topK !== Math.floor(options.limit)) {
+        console.warn(`Clamped similarity search limit from ${options.limit} to ${topK}`);
+      }
+
       // First, get the product's vector embedding
       const productResponse = await fetch(`${API_BASE_URL}/api/products/${productId}`, {
         signal: abortControllerRef.current.signal
@@ -87,7 +103,7 @@ export const useOrionSimilarity = (enabled: boolean = true) => {
         },
         body: JSON.stringify({
           query: `${product.title} ${product.category} ${product.style}`,
-          top_k: options.limit || 8,
+          top_k: topK,
           threshold: options.threshold || 0.7,
           filters: {
             namespace: 'marketplace_products',
@@ -165,6 +181,11 @@ export const useOrionSimilarity = (enabled: boolean = true) => {
     setError(null);
 
     try {
+      const topK = sanitizeLimit(options.limit, 12);
+      if (options.limit !== undefined && topK !== Math.floor(options.limit)) {
+        console.warn(`Clamped visual similarity search limit from ${options.limit} to ${topK}`);
+      }
+
       // Generate image embedding using ORION-CORE
       const embeddingResponse = await fetch(`${ORION_VECTOR_API}/api/embeddings/image`, {
         method: 'POST',
@@ -191,7 +212,7 @@ export const useOrionSimilarity = (enabled: boolean = true) => {
         },
         body: JSON.stringify({
           embedding: embeddingData.embedding,
-          top_k: options.limit || 12,
+          top_k: topK,
           threshold: options.threshold || 0.6,
           namespace: 'marketplace_images',
           include_metadata: true

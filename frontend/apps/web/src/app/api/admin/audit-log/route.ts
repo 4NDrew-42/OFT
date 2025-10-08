@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdminAction } from '@/middleware/admin';
 import { AdminAuditLog } from '@/lib/auth-utils';
+import { buildInternalHeaders, resolveInternalUrl } from '@/lib/internal-api';
 
 // In-memory storage for demo - replace with database in production
 let auditLogs: AdminAuditLog[] = [];
@@ -84,18 +85,31 @@ export async function POST(req: NextRequest) {
 
     // Store in ORION-CORE for persistence
     try {
-      const orionResponse = await fetch('/api/orion/store-memory', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: `audit-log-${auditEntry.id}`,
-          content: `AUDIT LOG: ${auditEntry.adminEmail} performed ${auditEntry.action} on ${auditEntry.target || 'system'} at ${auditEntry.timestamp.toISOString()}`,
-          metadata: {
-            type: 'audit_log',
-            ...auditEntry
-          }
-        })
-      });
+      const storeUrl = resolveInternalUrl('/api/orion/store-memory', req);
+
+      if (!storeUrl) {
+        console.error('Failed to resolve ORION-CORE store-memory endpoint');
+      } else {
+        const orionResponse = await fetch(storeUrl, {
+          method: 'POST',
+          headers: buildInternalHeaders(req, {
+            'Content-Type': 'application/json'
+          }),
+          body: JSON.stringify({
+            id: `audit-log-${auditEntry.id}`,
+            content: `AUDIT LOG: ${auditEntry.adminEmail} performed ${auditEntry.action} on ${auditEntry.target || 'system'} at ${auditEntry.timestamp.toISOString()}`,
+            metadata: {
+              type: 'audit_log',
+              ...auditEntry
+            }
+          })
+        });
+
+        if (!orionResponse.ok) {
+          const details = await orionResponse.text().catch(() => orionResponse.statusText);
+          console.error('Failed to store audit log in ORION-CORE:', details);
+        }
+      }
     } catch (orionError) {
       console.error('Failed to store audit log in ORION-CORE:', orionError);
     }
