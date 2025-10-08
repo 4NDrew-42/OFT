@@ -1,0 +1,493 @@
+import { CHAT_STREAM_URL, STATUS_URL, OCR_URL, FABRIC_BASE_URL } from "@/lib/env";
+
+export async function mintJWT(sub: string): Promise<string> {
+  const res = await fetch("/api/auth/mint-jwt", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sub }),
+  });
+  if (!res.ok) throw new Error(`Failed to mint JWT: ${res.status}`);
+  const data = await res.json();
+  return data.token as string;
+}
+
+function generateRequestId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+function authHeaders(token: string) {
+  return { Authorization: `Bearer ${token}`, 'X-Request-Id': generateRequestId() } as const;
+}
+
+export async function getSystemStatus(token: string) {
+  const r = await fetch(STATUS_URL, { headers: authHeaders(token), cache: "no-store" });
+  if (!r.ok) throw new Error(`Status error ${r.status}`);
+  return r.json();
+}
+
+export async function postOCR(file: File, token: string) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const r = await fetch(OCR_URL, { method: "POST", headers: authHeaders(token), body: fd });
+  if (!r.ok) throw new Error(`OCR error ${r.status}`);
+  return r.json();
+}
+
+export async function getFabricPatterns(token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/fabric_patterns`, { headers: authHeaders(token), cache: "no-store" });
+  if (!r.ok) throw new Error(`Patterns error ${r.status}`);
+  return r.json();
+}
+
+// ============================================================================
+// NOTES API
+// ============================================================================
+
+export async function searchNotes(query: string, topK: number, semantic: boolean, token: string) {
+  try {
+    const r = await fetch(`https://fabric.sidekickportal.com/api/notes/search?q=${encodeURIComponent(query)}&k=${Math.min(Math.max(topK, 1), 25)}&semantic=${semantic?1:0}`,
+      { headers: authHeaders(token), cache: "no-store" });
+    if (!r.ok) throw new Error(`Search error ${r.status}`);
+    return r.json();
+  } catch {
+    return { items: [] };
+  }
+}
+
+export async function createNote(noteData: { title: string; content: string; tags?: string[]; user_email: string }, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/notes`, {
+    method: "POST",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(noteData),
+  });
+  if (!r.ok) throw new Error(`Create note error ${r.status}`);
+  return r.json();
+}
+
+export async function updateNote(noteId: string, noteData: { title: string; content: string; tags?: string[] }, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/notes/${noteId}`, {
+    method: "PUT",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(noteData),
+  });
+  if (!r.ok) throw new Error(`Update note error ${r.status}`);
+  return r.json();
+}
+
+export async function deleteNote(noteId: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/notes/${noteId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!r.ok) throw new Error(`Delete note error ${r.status}`);
+  return r.json();
+}
+
+export async function getNote(noteId: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/notes/${noteId}`, {
+    headers: authHeaders(token),
+    cache: "no-store"
+  });
+  if (!r.ok) throw new Error(`Get note error ${r.status}`);
+  return r.json();
+}
+
+export async function getMyNotes(userEmail: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/notes/user/${encodeURIComponent(userEmail)}`, {
+    headers: authHeaders(token),
+    cache: "no-store"
+  });
+  if (!r.ok) throw new Error(`Get my notes error ${r.status}`);
+  return r.json();
+}
+
+// ============================================================================
+// CALENDAR API
+// ============================================================================
+
+export async function eventExtract(text: string, token: string) {
+  try {
+    const r = await fetch(`https://fabric.sidekickportal.com/api/calendar/event_extract`, {
+      method: "POST",
+      headers: { ...authHeaders(token), "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    if (!r.ok) throw new Error(`Calendar error ${r.status}`);
+    return r.json();
+  } catch {
+    return { title: text.slice(0, 40), when: new Date().toISOString(), location: "", notes: "" };
+  }
+}
+
+export async function createEvent(eventData: any, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/calendar/events`, {
+    method: "POST",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(eventData),
+  });
+  if (!r.ok) throw new Error(`Create event error ${r.status}`);
+  return r.json();
+}
+
+export async function updateEvent(eventId: string, eventData: any, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/calendar/events/${eventId}`, {
+    method: "PUT",
+    headers: { ...authHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(eventData),
+  });
+  if (!r.ok) throw new Error(`Update event error ${r.status}`);
+  return r.json();
+}
+
+export async function deleteEvent(eventId: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/calendar/events/${eventId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+  if (!r.ok) throw new Error(`Delete event error ${r.status}`);
+  return r.json();
+}
+
+export async function getMyEvents(userEmail: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/calendar/events/user/${encodeURIComponent(userEmail)}`, {
+    headers: authHeaders(token),
+    cache: "no-store"
+  });
+  if (!r.ok) throw new Error(`Get my events error ${r.status}`);
+  return r.json();
+}
+
+// ============================================================================
+// PROXY ROUTES (for client-side calls without exposing tokens)
+// ============================================================================
+
+// For chat streaming, prefer the proxy route to attach Authorization server-side
+export function getChatProxyUrl(q: string, sub: string) {
+  const u = new URL("/api/proxy/chat-stream", window.location.origin);
+  u.searchParams.set("q", q);
+  u.searchParams.set("sub", sub);
+  return u.toString();
+}
+
+export async function getSystemStatusProxy(sub: string) {
+  const r = await fetch(`/api/proxy/system-status?sub=${encodeURIComponent(sub)}`, { cache: 'no-store' });
+  if (!r.ok) throw new Error(`Status error ${r.status}`);
+  return r.json();
+}
+
+export async function postOCRProxy(file: File, sub: string) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const r = await fetch(`/api/proxy/ocr?sub=${encodeURIComponent(sub)}`, { method: 'POST', body: fd });
+  if (!r.ok) throw new Error(`OCR error ${r.status}`);
+  const ct = r.headers.get('content-type') || '';
+  return ct.includes('application/json') ? r.json() : r.text();
+}
+
+
+// ============================================================================
+// EXPENSES API
+// ============================================================================
+
+export async function getMyExpenses(userEmail: string, token: string, filters?: {
+  category?: string;
+  start_date?: string;
+  end_date?: string;
+  payment_method?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const params = new URLSearchParams();
+  if (filters?.category) params.append('category', filters.category);
+  if (filters?.start_date) params.append('start_date', filters.start_date);
+  if (filters?.end_date) params.append('end_date', filters.end_date);
+  if (filters?.payment_method) params.append('payment_method', filters.payment_method);
+  if (filters?.limit) params.append('limit', filters.limit.toString());
+  if (filters?.offset) params.append('offset', filters.offset.toString());
+  
+  const queryString = params.toString();
+  const url = `https://fabric.sidekickportal.com/api/expenses/user/${encodeURIComponent(userEmail)}${queryString ? '?' + queryString : ''}`;
+  
+  const r = await fetch(url, {
+    headers: authHeaders(token),
+    cache: "no-store"
+  });
+  if (!r.ok) throw new Error(`Get my expenses error ${r.status}`);
+  return r.json();
+}
+
+export async function getExpenseSummary(userEmail: string, token: string, filters?: {
+  start_date?: string;
+  end_date?: string;
+}) {
+  const params = new URLSearchParams();
+  if (filters?.start_date) params.append('start_date', filters.start_date);
+  if (filters?.end_date) params.append('end_date', filters.end_date);
+  
+  const queryString = params.toString();
+  const url = `https://fabric.sidekickportal.com/api/expenses/summary/${encodeURIComponent(userEmail)}${queryString ? '?' + queryString : ''}`;
+  
+  const r = await fetch(url, {
+    headers: authHeaders(token),
+    cache: "no-store"
+  });
+  if (!r.ok) throw new Error(`Get expense summary error ${r.status}`);
+  return r.json();
+}
+
+export async function createExpense(expense: {
+  user_email: string;
+  amount: number;
+  expense_date: string;
+  category?: string;
+  merchant?: string;
+  description?: string;
+  payment_method?: string;
+  receipt_image_data?: string;
+  tags?: string[];
+  is_recurring?: boolean;
+  recurrence_pattern?: string;
+  recurrence_start_date?: string;
+  recurrence_end_date?: string;
+}, token: string) {
+  console.log('🔍 [orionClient] createExpense called with payload:', JSON.stringify(expense, null, 2));
+  
+  const r = await fetch(`https://fabric.sidekickportal.com/api/expenses`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(expense)
+  });
+  
+  console.log('🔍 [orionClient] Response status:', r.status);
+  
+  if (!r.ok) {
+    const errorBody = await r.text();
+    console.error('🚨 [orionClient] Backend error response:', errorBody);
+    console.error('🚨 [orionClient] Response headers:', Object.fromEntries(r.headers.entries()));
+    throw new Error(`Create expense error ${r.status}: ${errorBody}`);
+  }
+}
+
+export async function updateExpense(expenseId: string, updates: Partial<{
+  amount: number;
+  expense_date: string;
+  category: string;
+  merchant: string;
+  description: string;
+  payment_method: string;
+  receipt_image_data: string;
+  tags: string[];
+  is_recurring: boolean;
+  recurrence_pattern: string;
+  recurrence_start_date: string;
+  recurrence_end_date: string;
+}>, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/expenses/${expenseId}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(updates)
+  });
+  if (!r.ok) throw new Error(`Update expense error ${r.status}`);
+  return r.json();
+}
+
+export async function deleteExpense(expenseId: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/expenses/${expenseId}`, {
+    method: "DELETE",
+    headers: authHeaders(token)
+  });
+  if (!r.ok) throw new Error(`Delete expense error ${r.status}`);
+  return r.json();
+}
+
+export async function getExpense(expenseId: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/expenses/${expenseId}`, {
+    headers: authHeaders(token),
+    cache: "no-store"
+  });
+  if (!r.ok) throw new Error(`Get expense error ${r.status}`);
+  return r.json();
+}
+
+// ============================================================================
+// INCOME API FUNCTIONS
+// ============================================================================
+
+export async function getMyIncome(userEmail: string, token: string, filters?: {
+  category?: string;
+  payment_method?: string;
+  start_date?: string;
+  end_date?: string;
+  is_recurring?: boolean;
+}) {
+  let url = `https://fabric.sidekickportal.com/api/income/user/${encodeURIComponent(userEmail)}`;
+  if (filters) {
+    const params = new URLSearchParams();
+    if (filters.category) params.append('category', filters.category);
+    if (filters.payment_method) params.append('payment_method', filters.payment_method);
+    if (filters.start_date) params.append('start_date', filters.start_date);
+    if (filters.end_date) params.append('end_date', filters.end_date);
+    if (filters.is_recurring !== undefined) params.append('is_recurring', String(filters.is_recurring));
+    if (params.toString()) url += `?${params.toString()}`;
+  }
+  const r = await fetch(url, { headers: authHeaders(token) });
+  if (!r.ok) throw new Error(`Get income error ${r.status}`);
+  return r.json();
+}
+
+export async function getIncomeSummary(userEmail: string, token: string, filters?: {
+  start_date?: string;
+  end_date?: string;
+}) {
+  let url = `https://fabric.sidekickportal.com/api/income/summary/${encodeURIComponent(userEmail)}`;
+  if (filters) {
+    const params = new URLSearchParams();
+    if (filters.start_date) params.append('start_date', filters.start_date);
+    if (filters.end_date) params.append('end_date', filters.end_date);
+    if (params.toString()) url += `?${params.toString()}`;
+  }
+  const r = await fetch(url, { headers: authHeaders(token) });
+  if (!r.ok) throw new Error(`Get income summary error ${r.status}`);
+  return r.json();
+}
+
+export async function createIncome(income: {
+  user_email: string;
+  amount: number;
+  income_date: string;
+  source?: string;
+  category?: string;
+  description?: string;
+  payment_method?: string;
+  is_recurring?: boolean;
+  recurrence_pattern?: string;
+  recurrence_start_date?: string;
+  recurrence_end_date?: string;
+  tags?: string[];
+}, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/income`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(income)
+  });
+  if (!r.ok) throw new Error(`Create income error ${r.status}`);
+  return r.json();
+}
+
+export async function updateIncome(incomeId: string, updates: {
+  amount?: number;
+  income_date?: string;
+  source?: string;
+  category?: string;
+  description?: string;
+  payment_method?: string;
+  is_recurring?: boolean;
+  recurrence_pattern?: string;
+  recurrence_start_date?: string;
+  recurrence_end_date?: string;
+  tags?: string[];
+}, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/income/${incomeId}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(updates)
+  });
+  if (!r.ok) throw new Error(`Update income error ${r.status}`);
+  return r.json();
+}
+
+export async function deleteIncome(incomeId: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/income/${incomeId}`, {
+    method: "DELETE",
+    headers: authHeaders(token)
+  });
+  if (!r.ok) throw new Error(`Delete income error ${r.status}`);
+  return r.json();
+}
+
+export async function getIncome(incomeId: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/income/${incomeId}`, {
+    headers: authHeaders(token)
+  });
+  if (!r.ok) throw new Error(`Get income error ${r.status}`);
+  return r.json();
+}
+
+// ============================================================================
+// BUDGETS API FUNCTIONS
+// ============================================================================
+
+export async function getMyBudgets(userEmail: string, token: string, filters?: {
+  is_active?: boolean;
+}) {
+  let url = `https://fabric.sidekickportal.com/api/budgets/user/${encodeURIComponent(userEmail)}`;
+  if (filters?.is_active !== undefined) {
+    url += `?is_active=${filters.is_active}`;
+  }
+  const r = await fetch(url, { headers: authHeaders(token) });
+  if (!r.ok) throw new Error(`Get budgets error ${r.status}`);
+  return r.json();
+}
+
+export async function getBudgetStatus(userEmail: string, token: string, month?: number, year?: number) {
+  let url = `https://fabric.sidekickportal.com/api/budgets/status/${encodeURIComponent(userEmail)}`;
+  const params = new URLSearchParams();
+  if (month) params.append('month', String(month));
+  if (year) params.append('year', String(year));
+  if (params.toString()) url += `?${params.toString()}`;
+  const r = await fetch(url, { headers: authHeaders(token) });
+  if (!r.ok) throw new Error(`Get budget status error ${r.status}`);
+  return r.json();
+}
+
+export async function createBudget(budget: {
+  user_email: string;
+  category: string;
+  monthly_limit: number;
+  start_date: string;
+  end_date?: string;
+  alert_threshold?: number;
+}, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/budgets`, {
+    method: "POST",
+    headers: authHeaders(token),
+    body: JSON.stringify(budget)
+  });
+  if (!r.ok) throw new Error(`Create budget error ${r.status}`);
+  return r.json();
+}
+
+export async function updateBudget(budgetId: string, updates: {
+  category?: string;
+  monthly_limit?: number;
+  start_date?: string;
+  end_date?: string;
+  alert_threshold?: number;
+  is_active?: boolean;
+}, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/budgets/${budgetId}`, {
+    method: "PUT",
+    headers: authHeaders(token),
+    body: JSON.stringify(updates)
+  });
+  if (!r.ok) throw new Error(`Update budget error ${r.status}`);
+  return r.json();
+}
+
+export async function deleteBudget(budgetId: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/budgets/${budgetId}`, {
+    method: "DELETE",
+    headers: authHeaders(token)
+  });
+  if (!r.ok) throw new Error(`Delete budget error ${r.status}`);
+  return r.json();
+}
+
+export async function getBudget(budgetId: string, token: string) {
+  const r = await fetch(`https://fabric.sidekickportal.com/api/budgets/${budgetId}`, {
+    headers: authHeaders(token)
+  });
+  if (!r.ok) throw new Error(`Get budget error ${r.status}`);
+  return r.json();
+}
