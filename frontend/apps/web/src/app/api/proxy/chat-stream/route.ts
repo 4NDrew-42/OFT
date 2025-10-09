@@ -91,8 +91,37 @@ export async function GET(req: Request) {
     return new Response(text || "stream_error", { status: upstream.status });
   }
 
-  // Directly proxy the SSE stream from backend
-  return new Response(upstream.body, {
+  // Transform the SSE stream to fix backend's escaped newlines
+  const reader = upstream.body?.getReader();
+  if (!reader) {
+    return new Response("no_stream_body", { status: 500 });
+  }
+
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          // Decode chunk and replace literal \n\n with actual newlines
+          let chunk = decoder.decode(value, { stream: true });
+          chunk = chunk.replace(/\\n\\n/g, '\n\n');
+
+          controller.enqueue(encoder.encode(chunk));
+        }
+        controller.close();
+      } catch (error) {
+        console.error('Stream error:', error);
+        controller.error(error);
+      }
+    },
+  });
+
+  return new Response(stream, {
     status: 200,
     headers: {
       "Content-Type": "text/event-stream",
