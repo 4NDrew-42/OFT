@@ -64,9 +64,10 @@ export function useEnhancedChatStream(sub: string, options: EnhancedChatOptions 
         return;
       }
 
-      // Filter out loading/status messages - don't add them to buffer
-      if (e.data.startsWith("🔍") || e.data.startsWith("📚") || e.data.startsWith("🤖")) {
-        // These are loading messages, ignore them for cleaner UX
+      // Filter out ALL status/loading messages - don't add them to buffer
+      const statusEmojis = ["🔍", "📚", "🤖", "💭", "🧠", "✓", "⚡", "📊"];
+      if (statusEmojis.some(emoji => e.data.startsWith(emoji))) {
+        // These are status messages from backend, ignore for cleaner UX
         return;
       }
 
@@ -77,7 +78,7 @@ export function useEnhancedChatStream(sub: string, options: EnhancedChatOptions 
         return;
       }
 
-      // Regular content
+      // Regular content - only add actual response text
       setBuffer((prev) => prev + e.data);
     };
 
