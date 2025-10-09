@@ -59,52 +59,46 @@ export async function GET(req: Request) {
 
   const reqId = req.headers.get("x-request-id") || (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
 
-  // Use production Cloudflare tunnel endpoint for ORION-CORE Enhanced Chat
-  const ENHANCED_CHAT_URL = 'https://orion-chat.sidekickportal.com/api/chat-enhanced';
+  // Use production Cloudflare tunnel endpoint for ORION-CORE SSE Streaming
+  const SSE_STREAM_URL = 'https://orion-chat.sidekickportal.com/api/chat-stream';
 
-  const upstream = await fetch(ENHANCED_CHAT_URL, {
-    method: "POST",
+  // Build query parameters for SSE endpoint
+  const params = new URLSearchParams({
+    message: q,
+    userId: sub,
+    sessionId: `web_${sub}_${Date.now()}`,
+    useRAG: 'true',
+    model: 'deepseek-chat',
+    maxTokens: estimateRequiredTokens(q, conversationHistory).toString()
+  });
+
+  // Add conversation history if provided
+  if (conversationHistory.length > 0) {
+    params.append('conversationHistory', JSON.stringify(conversationHistory));
+  }
+
+  const upstream = await fetch(`${SSE_STREAM_URL}?${params.toString()}`, {
+    method: "GET",
     headers: {
-      "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
       "X-Request-Id": reqId,
+      "Accept": "text/event-stream",
     },
-    body: JSON.stringify({ 
-      message: q,
-      sessionId: `web_${sub}_${Date.now()}`,
-      userId: sub,
-      useRAG: true,
-      model: 'deepseek-chat',
-      conversationHistory: conversationHistory,
-      maxTokens: estimateRequiredTokens(q, conversationHistory)
-    }),
   });
 
   if (!upstream.ok) {
     const text = await upstream.text();
-    return new Response(text || "enhanced_chat_error", { status: upstream.status });
+    return new Response(text || "stream_error", { status: upstream.status });
   }
 
-  const jsonResponse = await upstream.json();
-  const responseContent = jsonResponse.response || "No response generated";
-
-  // Convert to SSE format for frontend compatibility
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream({
-    start(controller) {
-      // Send the response as SSE data
-      controller.enqueue(encoder.encode(`data: ${responseContent}\n\n`));
-      controller.enqueue(encoder.encode(`data: [DONE]\n\n`));
-      controller.close();
-    },
-  });
-
-  return new Response(stream, {
+  // Directly proxy the SSE stream from backend
+  return new Response(upstream.body, {
     status: 200,
     headers: {
       "Content-Type": "text/event-stream",
-      "Cache-Control": "no-store",
-      Connection: "keep-alive",
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
     },
   });
 }
