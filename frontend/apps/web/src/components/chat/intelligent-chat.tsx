@@ -56,29 +56,7 @@ export const IntelligentChat: React.FC = () => {
   const { data: sessionData } = useSession();
   const userEmail = sessionData?.user?.email || '';
 
-  // CRITICAL: Single-user access control
-  if (!isAuthorizedUser(userEmail)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <GlassCard className="max-w-md w-full p-8 text-center">
-          <div className="flex justify-center mb-4">
-            <ShieldAlert className="w-16 h-16 text-red-400" />
-          </div>
-          <h2 className="text-2xl font-bold text-red-400 mb-2">Access Denied</h2>
-          <p className="text-gray-300 mb-4">
-            This chat interface is restricted to authorized users only.
-          </p>
-          <p className="text-sm text-gray-400">
-            Current user: <span className="font-mono">{userEmail || 'Not signed in'}</span>
-          </p>
-          <p className="text-sm text-gray-400 mt-2">
-            Authorized user: <span className="font-mono">{getAuthorizedUserEmail()}</span>
-          </p>
-        </GlassCard>
-      </div>
-    );
-  }
-
+  // Initialize all hooks BEFORE any conditional returns (Rules of Hooks)
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [currentProvider, setCurrentProvider] = useState<ChatProvider>('gemini');
@@ -130,6 +108,29 @@ export const IntelligentChat: React.FC = () => {
       localStorage.setItem(`chat-messages-${userEmail}`, JSON.stringify(messages));
     }
   }, [messages, userEmail]);
+
+  // CRITICAL: Single-user access control (after all hooks)
+  if (!isAuthorizedUser(userEmail)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <GlassCard className="max-w-md w-full p-8 text-center">
+          <div className="flex justify-center mb-4">
+            <ShieldAlert className="w-16 h-16 text-red-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-red-400 mb-2">Access Denied</h2>
+          <p className="text-gray-300 mb-4">
+            This chat interface is restricted to authorized users only.
+          </p>
+          <p className="text-sm text-gray-400">
+            Current user: <span className="font-mono">{userEmail || 'Not signed in'}</span>
+          </p>
+          <p className="text-sm text-gray-400 mt-2">
+            Authorized user: <span className="font-mono">{getAuthorizedUserEmail()}</span>
+          </p>
+        </GlassCard>
+      </div>
+    );
+  }
 
   const initializeSession = async () => {
     try {
