@@ -7,13 +7,14 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Brain, Database, Cpu, Zap, Clock, Sparkles, History, Trash2, Copy, Check, ChevronDown, Plus } from 'lucide-react';
+import { Send, Brain, Database, Cpu, Zap, Clock, Sparkles, History, Trash2, Copy, Check, ChevronDown, Plus, ShieldAlert } from 'lucide-react';
 import { GlassPanel, GlassButton, GlassInput, GlassCard, StatusIndicator, NebulaBackground } from '@/components/ui/glass-components';
 import { cn } from '@/lib/utils';
 import { useEnhancedChatStream } from '@/hooks/useEnhancedChatStream';
 import { useSession } from 'next-auth/react';
-import { getUserSessions, getSessionMessages, saveMessage, createSession, setCurrentSessionId, getCurrentSessionId, getUserId, clearCurrentSession, deleteSession, type ChatSession as SessionType } from '@/lib/session/client';
+import { getUserSessions, getSessionMessages, saveMessage, createSession, setCurrentSessionId, getCurrentSessionId, clearCurrentSession, deleteSession, type ChatSession as SessionType } from '@/lib/session/client';
 import { parseTemporalQuery, extractTemporalContext } from '@/lib/temporal/parser';
+import { isAuthorizedUser, getAuthorizedUserEmail } from '@/lib/session/identity';
 
 // Types
 interface ChatMessage {
@@ -54,6 +55,29 @@ type ChatProvider = 'gemini' | 'deepseek';
 export const IntelligentChat: React.FC = () => {
   const { data: sessionData } = useSession();
   const userEmail = sessionData?.user?.email || '';
+
+  // CRITICAL: Single-user access control
+  if (!isAuthorizedUser(userEmail)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <GlassCard className="max-w-md w-full p-8 text-center">
+          <div className="flex justify-center mb-4">
+            <ShieldAlert className="w-16 h-16 text-red-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-red-400 mb-2">Access Denied</h2>
+          <p className="text-gray-300 mb-4">
+            This chat interface is restricted to authorized users only.
+          </p>
+          <p className="text-sm text-gray-400">
+            Current user: <span className="font-mono">{userEmail || 'Not signed in'}</span>
+          </p>
+          <p className="text-sm text-gray-400 mt-2">
+            Authorized user: <span className="font-mono">{getAuthorizedUserEmail()}</span>
+          </p>
+        </GlassCard>
+      </div>
+    );
+  }
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputValue, setInputValue] = useState('');

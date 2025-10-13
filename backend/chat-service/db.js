@@ -10,10 +10,12 @@ const { Pool } = require('pg');
 
 const pool = new Pool({
   host: process.env.DB_HOST || '192.168.50.79',
-  port: parseInt(process.env.DB_PORT || '5432'),
+  port: parseInt(process.env.DB_PORT || '6432'), // Default to PgBouncer port
   database: process.env.DB_NAME || 'orion_core',
-  user: process.env.DB_USER || 'orion',
+  user: process.env.DB_USER || 'orion_user',
   password: process.env.DB_PASSWORD || 'changeme',
+  // PHASE 1 SECURITY: Optional SSL support for database connections
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
