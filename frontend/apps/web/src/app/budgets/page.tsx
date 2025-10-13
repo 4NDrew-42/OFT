@@ -3,8 +3,15 @@
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { DollarSign, Plus, X, Save, Trash2, TrendingUp, AlertTriangle, CheckCircle } from "lucide-react";
-import { mintJWT } from "@/lib/auth";
 import { getMyBudgets, getBudgetStatus, createBudget, updateBudget, deleteBudget } from "@/lib/orionClient";
+
+// Helper to mint JWT via API endpoint
+async function mintJWT(): Promise<string> {
+  const response = await fetch('/api/auth/mint-jwt', { method: 'POST' });
+  if (!response.ok) throw new Error('Failed to mint JWT');
+  const data = await response.json();
+  return data.token;
+}
 
 const CATEGORIES = ['Food & Dining', 'Transportation', 'Shopping', 'Entertainment', 'Bills & Utilities', 'Healthcare', 'Travel', 'Education', 'Other'];
 
