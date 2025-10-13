@@ -166,7 +166,7 @@ app.use((err, req, res, next) => {
   console.error('Unhandled chat service error:', err);
   
   // CORS errors
-  if (err.message === 'Not allowed by CORS') {
+  if (err.message === 'Not allowed by CORS' || err.message === 'CORS Error: Origin not allowed') {
     return res.status(403).json({
       error: 'CORS Error',
       message: 'Origin not allowed',
