@@ -1,20 +1,33 @@
+import { getServerSession } from 'next-auth/next';
 import { buildOrionJWT } from "@/lib/auth-token";
+import { resolveStableUserId } from '@/lib/session/identity';
 
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
-  const url = new URL(req.url);
-  const q = url.searchParams.get("q");
-  const sub = url.searchParams.get("sub");
-  const historyParam = url.searchParams.get("history");
-
-  if (!q || !sub) {
-    return new Response("missing q or sub", { status: 400 });
+  // 1. CRITICAL: Verify session first
+  const session = await getServerSession();
+  if (!session?.user?.email) {
+    return new Response('Unauthorized', { status: 401 });
   }
 
+  // 2. CRITICAL: Enforce single-user (throws if not authorized)
+  const userId = resolveStableUserId(session.user.email);
+
+  // 3. Parse query parameters
+  const url = new URL(req.url);
+  const q = url.searchParams.get("q");
+  const historyParam = url.searchParams.get("history");
+
+  // CRITICAL: Don't accept 'sub' from query params - use authenticated userId
+  if (!q) {
+    return new Response("missing query parameter: q", { status: 400 });
+  }
+
+  // 4. Mint JWT with authenticated userId
   let token: string;
   try {
-    token = buildOrionJWT(sub);
+    token = buildOrionJWT(userId);
   } catch (e) {
     return new Response("server_not_configured", { status: 500 });
   }
@@ -24,11 +37,11 @@ export async function GET(req: Request) {
   // Pure proxy to backend - let backend make ALL decisions
   const SSE_STREAM_URL = 'https://orion-chat.sidekickportal.com/api/chat-stream';
 
-  // Pass only essential parameters, backend decides everything else
+  // Pass only essential parameters with authenticated userId
   const params = new URLSearchParams({
     message: q,
-    userId: sub,
-    sessionId: `web_${sub}_${Date.now()}`,
+    userId: userId, // Use authenticated userId, not query param
+    sessionId: `web_${userId}_${Date.now()}`,
   });
 
   // Pass conversation history if provided (backend decides how to use it)

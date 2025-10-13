@@ -1,10 +1,11 @@
 /**
- * Session Management Client (HTTP-only)
- * 
- * This client makes HTTP fetch() calls to the ORION-CORE backend API.
- * NO direct Redis or database connections - backend handles all persistence.
- * 
- * Backend: https://orion-chat.sidekickportal.com (ORION-CORE web-portal)
+ * Session Management Client - SECURED
+ *
+ * CRITICAL SECURITY UPDATE:
+ * - All calls now go through internal Next.js API routes (/api/sessions/*)
+ * - Session authentication enforced server-side
+ * - No direct backend calls with caller-supplied userId
+ * - Single-user authorization enforced
  */
 
 // Types
@@ -46,18 +47,20 @@ export interface SessionFilterOptions {
 }
 
 
-// Backend API base URL
-const BACKEND_API_URL = process.env.NEXT_PUBLIC_BACKEND_SESSION_API || 'https://orion-chat.sidekickportal.com';
+// CRITICAL: Use internal API routes (authenticated proxies)
+const INTERNAL_API_BASE = '/api/sessions';
 
 /**
  * Create a new chat session
+ *
+ * CRITICAL: No userId parameter - enforced server-side via session
  */
-export async function createSession(userId: string, firstMessage?: string): Promise<ChatSession> {
+export async function createSession(firstMessage?: string): Promise<ChatSession> {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/api/sessions/create`, {
+    const response = await fetch(`${INTERNAL_API_BASE}/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, firstMessage: firstMessage || '' }),
+      body: JSON.stringify({ firstMessage: firstMessage || '' }),
     });
 
     if (!response.ok) {
@@ -72,20 +75,21 @@ export async function createSession(userId: string, firstMessage?: string): Prom
 }
 
 /**
- * Get all sessions for a user with optional date filtering
- * 
- * @param userId - The user ID to fetch sessions for
+ * Get all sessions for the authenticated user with optional date filtering
+ *
+ * CRITICAL: No userId parameter - enforced server-side via session
+ *
  * @param options - Optional filtering and sorting options
  * @returns Array of chat sessions matching the criteria
- * 
+ *
  * @example
  * ```typescript
  * // Get all sessions
- * const sessions = await getUserSessions('user123');
- * 
+ * const sessions = await getUserSessions();
+ *
  * // Get sessions from yesterday
  * const yesterday = subDays(new Date(), 1);
- * const sessions = await getUserSessions('user123', {
+ * const sessions = await getUserSessions({
  *   startDate: startOfDay(yesterday),
  *   endDate: endOfDay(yesterday),
  *   limit: 20
@@ -93,11 +97,10 @@ export async function createSession(userId: string, firstMessage?: string): Prom
  * ```
  */
 export async function getUserSessions(
-  userId: string,
   options?: SessionFilterOptions
 ): Promise<ChatSession[]> {
   try {
-    const params = new URLSearchParams({ userId: encodeURIComponent(userId) });
+    const params = new URLSearchParams();
     
     // Add optional date filtering parameters
     if (options?.startDate) {
@@ -116,7 +119,7 @@ export async function getUserSessions(
       params.set('sortOrder', options.sortOrder);
     }
     
-    const response = await fetch(`${BACKEND_API_URL}/api/sessions/list?${params.toString()}`);
+    const response = await fetch(`${INTERNAL_API_BASE}/list?${params.toString()}`);
 
     if (!response.ok) {
       throw new Error(`Failed to get sessions: ${response.statusText}`);
@@ -132,10 +135,12 @@ export async function getUserSessions(
 
 /**
  * Get all messages for a session
+ *
+ * CRITICAL: Session ownership verified server-side
  */
 export async function getSessionMessages(sessionId: string): Promise<ChatMessage[]> {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/api/sessions/messages?sessionId=${encodeURIComponent(sessionId)}`);
+    const response = await fetch(`${INTERNAL_API_BASE}/messages?sessionId=${encodeURIComponent(sessionId)}`);
 
     if (!response.ok) {
       throw new Error(`Failed to get messages: ${response.statusText}`);
@@ -159,7 +164,7 @@ export async function saveMessage(
   metadata?: Record<string, any>
 ): Promise<ChatMessage> {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/api/sessions/save-message`, {
+    const response = await fetch(`/api/sessions/save-message`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId, role, content, metadata }),
@@ -181,7 +186,7 @@ export async function saveMessage(
  */
 export async function deleteSession(sessionId: string): Promise<void> {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/api/sessions/delete`, {
+    const response = await fetch(`/api/sessions/delete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId }),
