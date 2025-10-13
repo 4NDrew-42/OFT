@@ -1,16 +1,19 @@
 /**
  * ORION-CORE Chat Backend Service
- * 
+ *
  * Provides session management endpoints for chat functionality
  * Runs on port 3002 (ORACLE - 192.168.50.77)
  * Accessible via: https://orion-chat.sidekickportal.com
- * 
+ *
  * Architecture:
  * - Express.js REST API
  * - PostgreSQL for persistence (ORION-MEM 192.168.50.79)
  * - CORS enabled for sidekickportal.com domains
  * - Rate limiting for API protection
  */
+
+// Load environment variables from .env file
+require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
