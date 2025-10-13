@@ -109,7 +109,71 @@ export const IntelligentChat: React.FC = () => {
     }
   }, [messages, userEmail]);
 
-  // CRITICAL: Single-user access control (after all hooks)
+  // Load session history from backend (useCallback must be before useEffect that uses it)
+  const loadSessionHistory = useCallback(async () => {
+    if (!userEmail) return;
+    try {
+      const userId = getUserId();
+      const sessions = await getUserSessions(userId);
+      setSessionHistory(sessions);
+    } catch (error) {
+      console.error('Failed to load session history:', error);
+    }
+  }, [userEmail]);
+
+  // Handle streaming response
+  useEffect(() => {
+    if (!buffer || isStreaming) return;
+
+    // Stream completed, add the full response as a message
+    const assistantMessage: ChatMessage = {
+      id: `msg_${Date.now()}`,
+      type: 'assistant',
+      content: buffer,
+      timestamp: Date.now(),
+      sources: [],
+      metadata: {
+        tokens: buffer.length,
+        confidence: 0.9,
+        processingTime: 1.0,
+        ragMemoriesUsed: 0,
+        provider: streamProvider
+      }
+    };
+
+    setMessages(prev => [...prev, assistantMessage]);
+
+    // Save assistant message to backend session (async, don't await)
+    const currentSessionId = getCurrentSessionId();
+    if (currentSessionId && userEmail) {
+      saveMessage(currentSessionId, 'assistant', buffer, {
+        tokens: buffer.length,
+        provider: streamProvider
+      }).then(() => {
+        console.log('Assistant message saved to session:', currentSessionId);
+        loadSessionHistory().catch(err => console.error('Failed to refresh history:', err));
+      }).catch(error => {
+        console.error('Failed to save assistant message:', error);
+      });
+    }
+
+    clearBuffer();
+  }, [buffer, isStreaming, streamProvider, userEmail, loadSessionHistory, clearBuffer]);
+
+  // Load session history on mount
+  useEffect(() => {
+    if (userEmail) {
+      loadSessionHistory();
+    }
+  }, [userEmail, loadSessionHistory]);
+
+  // Helper function to get stable user ID
+  const getUserId = () => {
+    if (!userEmail) throw new Error('No user email available');
+    return userEmail.toLowerCase().trim();
+  };
+
+  // CRITICAL: Single-user access control (after ALL hooks)
   if (!isAuthorizedUser(userEmail)) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -271,47 +335,6 @@ export const IntelligentChat: React.FC = () => {
 
 
 
-  // Handle streaming response
-  useEffect(() => {
-    if (!buffer || isStreaming) return;
-    
-    // Stream completed, add the full response as a message
-    const assistantMessage: ChatMessage = {
-      id: `msg_${Date.now()}`,
-      type: 'assistant',
-      content: buffer,
-      timestamp: Date.now(),
-      // TODO: Parse sources and metadata from buffer if available
-      sources: [],
-      metadata: {
-        tokens: buffer.length,
-        confidence: 0.9,
-        processingTime: 1.0,
-        ragMemoriesUsed: 0,
-        provider: streamProvider
-      }
-    };
-
-    setMessages(prev => [...prev, assistantMessage]);
-    
-    // Save assistant message to backend session (async, don't await)
-    const currentSessionId = getCurrentSessionId();
-    if (currentSessionId && userEmail) {
-      saveMessage(currentSessionId, 'assistant', buffer, {
-        tokens: buffer.length,
-        provider: streamProvider
-      }).then(() => {
-        console.log('Assistant message saved to session:', currentSessionId);
-        // Refresh session history in background (don't await to avoid re-renders)
-        loadSessionHistory().catch(err => console.error('Failed to refresh history:', err));
-      }).catch(error => {
-        console.error('Failed to save assistant message:', error);
-      });
-    }
-    
-    clearBuffer();
-  }, [buffer, isStreaming, streamProvider]);
-
   // Provider switching functionality
   const handleProviderSwitch = (provider: ChatProvider) => {
     setCurrentProvider(provider);
@@ -345,18 +368,6 @@ export const IntelligentChat: React.FC = () => {
   // ============================================================================
   // SESSION MANAGEMENT (HTTP-only - calls ORION-CORE backend)
   // ============================================================================
-
-  // Load session history from backend
-  const loadSessionHistory = useCallback(async () => {
-    if (!userEmail) return;
-    try {
-      const userId = getUserId();
-      const sessions = await getUserSessions(userId);
-      setSessionHistory(sessions);
-    } catch (error) {
-      console.error('Failed to load session history:', error);
-    }
-  }, [userEmail]);
 
   // Load messages from a specific session
   const loadSessionMessages = async (sessionId: string) => {
@@ -441,13 +452,6 @@ export const IntelligentChat: React.FC = () => {
       handleNewChat();
     }
   };
-
-  // Load session history on mount
-  useEffect(() => {
-    if (userEmail) {
-      loadSessionHistory();
-    }
-  }, [userEmail, loadSessionHistory]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
