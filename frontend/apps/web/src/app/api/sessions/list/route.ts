@@ -9,7 +9,7 @@ import { getServerSession } from 'next-auth/next';
 import { buildOrionJWT } from '@/lib/auth-token';
 import { resolveStableUserId } from '@/lib/session/identity';
 
-const BACKEND_URL = process.env.CHAT_SERVICE_URL || 'http://192.168.50.79:3002';
+const BACKEND_URL = process.env.CHAT_SERVICE_URL || 'https://orion-chat.sidekickportal.com';
 
 export async function GET(req: Request) {
   try {

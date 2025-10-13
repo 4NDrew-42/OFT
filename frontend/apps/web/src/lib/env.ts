@@ -5,7 +5,7 @@ export const FABRIC_BASE_URL = process.env.NEXT_PUBLIC_ORION_API_URL || 'https:/
 // Back-compat alias (some hooks import ORION_VECTOR_URL)
 export const ORION_VECTOR_URL = FABRIC_BASE_URL;
 export const CHAT_STREAM_URL = process.env.NEXT_PUBLIC_CHAT_STREAM_URL || 'https://orion-chat.sidekickportal.com/api/chat-enhanced';
-export const STATUS_URL = process.env.NEXT_PUBLIC_STATUS_URL || 'http://192.168.50.79:8081/health';
+export const STATUS_URL = process.env.NEXT_PUBLIC_STATUS_URL || 'https://fabric.sidekickportal.com/api/system-status';
 export const OCR_URL = process.env.NEXT_PUBLIC_OCR_URL || `${FABRIC_BASE_URL}/api/ocr/receipt`;
 export const VERCEL_ENV = process.env.NEXT_PUBLIC_VERCEL_ENV || 'development';
 export const ORION_ANALYTICS_ENABLED = process.env.NEXT_PUBLIC_ORION_ANALYTICS_ENABLED !== 'false';
