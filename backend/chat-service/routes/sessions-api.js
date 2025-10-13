@@ -1,28 +1,48 @@
 /**
- * Chat Sessions API Routes
- * 
- * Implements session management endpoints for ORION-CORE chat system
- * Endpoints match frontend client.ts API contract
+ * Chat Sessions API Routes - SECURED
+ *
+ * CRITICAL SECURITY UPDATE:
+ * - All routes protected by JWT middleware (req.jwtPayload available)
+ * - Single-user enforcement (only authorized user can access)
+ * - userId validation (must match JWT sub claim)
  */
 
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 
+const AUTHORIZED_USER = (process.env.AUTHORIZED_USER_EMAIL || 'jamesandrewklein@gmail.com').toLowerCase();
+
 /**
  * POST /api/sessions/create - Create new chat session
- * 
+ *
  * Body: { userId: string, firstMessage?: string }
  * Returns: ChatSession object
  */
 router.post('/create', async (req, res) => {
   const { userId, firstMessage } = req.body;
-  
-  if (!userId) {
-    return res.status(400).json({ 
-      error: 'Missing required field: userId' 
+
+  // CRITICAL: Extract authenticated userId from JWT (set by middleware)
+  const authenticatedUser = req.jwtPayload.sub.toLowerCase();
+
+  // CRITICAL: Reject if request userId doesn't match JWT sub
+  if (userId && userId.toLowerCase() !== authenticatedUser) {
+    return res.status(403).json({
+      error: 'userId mismatch',
+      message: 'Request userId must match authenticated user'
     });
   }
+
+  // CRITICAL: Enforce single-user
+  if (authenticatedUser !== AUTHORIZED_USER) {
+    return res.status(403).json({
+      error: 'Unauthorized user',
+      message: `Only ${AUTHORIZED_USER} is authorized`
+    });
+  }
+
+  // Force userId to authenticated user (ignore any provided value)
+  const safeUserId = authenticatedUser;
   
   try {
     // Generate session ID
@@ -60,7 +80,7 @@ router.post('/create', async (req, res) => {
     
     const values = [
       sessionId,
-      userId,
+      safeUserId, // Use authenticated userId, not request userId
       title,
       firstMessage || '',
       firstMessage || '',
@@ -80,37 +100,42 @@ router.post('/create', async (req, res) => {
 });
 
 /**
- * GET /api/sessions/list - Get all sessions for a user
- * 
- * Query params: 
- *   - userId (required)
+ * GET /api/sessions/list - Get all sessions for authenticated user
+ *
+ * CRITICAL: Ignores provided userId, uses authenticated user from JWT
+ *
+ * Query params:
  *   - startDate (optional, ISO string)
  *   - endDate (optional, ISO string)
  *   - limit (optional, number)
  *   - sortBy (optional, 'createdAt' | 'updatedAt')
  *   - sortOrder (optional, 'asc' | 'desc')
- * 
+ *
  * Returns: { sessions: ChatSession[] }
  */
 router.get('/list', async (req, res) => {
-  const { 
-    userId, 
-    startDate, 
-    endDate, 
-    limit = 100, 
-    sortBy = 'updatedAt', 
-    sortOrder = 'desc' 
+  const {
+    startDate,
+    endDate,
+    limit = 100,
+    sortBy = 'updatedAt',
+    sortOrder = 'desc'
   } = req.query;
-  
-  if (!userId) {
-    return res.status(400).json({ 
-      error: 'Missing required query parameter: userId' 
+
+  // CRITICAL: Use authenticated user from JWT, ignore query param
+  const authenticatedUser = req.jwtPayload.sub.toLowerCase();
+
+  // CRITICAL: Enforce single-user
+  if (authenticatedUser !== AUTHORIZED_USER) {
+    return res.status(403).json({
+      error: 'Unauthorized user',
+      message: `Only ${AUTHORIZED_USER} is authorized`
     });
   }
-  
+
   try {
     let query = `
-      SELECT 
+      SELECT
         session_id AS "sessionId",
         user_id AS "userId",
         title,
@@ -123,8 +148,8 @@ router.get('/list', async (req, res) => {
       FROM chat_sessions
       WHERE user_id = $1
     `;
-    
-    const values = [userId];
+
+    const values = [authenticatedUser]; // Use authenticated user, not query param
     let paramIndex = 2;
     
     // Add date filtering
@@ -176,16 +201,45 @@ router.get('/list', async (req, res) => {
  */
 router.get('/messages', async (req, res) => {
   const { sessionId } = req.query;
-  
+
   if (!sessionId) {
-    return res.status(400).json({ 
-      error: 'Missing required query parameter: sessionId' 
+    return res.status(400).json({
+      error: 'Missing required query parameter: sessionId'
     });
   }
-  
+
+  // CRITICAL: Verify session belongs to authenticated user
+  const authenticatedUser = req.jwtPayload.sub.toLowerCase();
+
+  // CRITICAL: Enforce single-user
+  if (authenticatedUser !== AUTHORIZED_USER) {
+    return res.status(403).json({
+      error: 'Unauthorized user',
+      message: `Only ${AUTHORIZED_USER} is authorized`
+    });
+  }
+
   try {
+    // First, verify session ownership
+    const sessionCheck = await pool.query(
+      'SELECT user_id FROM chat_sessions WHERE session_id = $1',
+      [sessionId]
+    );
+
+    if (sessionCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // CRITICAL: Verify session belongs to authenticated user
+    if (sessionCheck.rows[0].user_id.toLowerCase() !== authenticatedUser) {
+      return res.status(403).json({
+        error: 'Unauthorized access to session',
+        message: 'Session does not belong to authenticated user'
+      });
+    }
+
     const query = `
-      SELECT 
+      SELECT
         message_id AS "id",
         session_id AS "sessionId",
         role,
@@ -196,9 +250,9 @@ router.get('/messages', async (req, res) => {
       WHERE session_id = $1
       ORDER BY created_at ASC
     `;
-    
+
     const result = await pool.query(query, [sessionId]);
-    
+
     res.json({
       messages: result.rows,
       count: result.rows.length
@@ -220,20 +274,49 @@ router.get('/messages', async (req, res) => {
  */
 router.post('/save-message', async (req, res) => {
   const { sessionId, role, content, metadata } = req.body;
-  
+
   if (!sessionId || !role || !content) {
-    return res.status(400).json({ 
-      error: 'Missing required fields: sessionId, role, content' 
+    return res.status(400).json({
+      error: 'Missing required fields: sessionId, role, content'
     });
   }
-  
+
   if (!['user', 'assistant'].includes(role)) {
-    return res.status(400).json({ 
-      error: 'Invalid role. Must be "user" or "assistant"' 
+    return res.status(400).json({
+      error: 'Invalid role. Must be "user" or "assistant"'
     });
   }
-  
+
+  // CRITICAL: Verify session belongs to authenticated user
+  const authenticatedUser = req.jwtPayload.sub.toLowerCase();
+
+  // CRITICAL: Enforce single-user
+  if (authenticatedUser !== AUTHORIZED_USER) {
+    return res.status(403).json({
+      error: 'Unauthorized user',
+      message: `Only ${AUTHORIZED_USER} is authorized`
+    });
+  }
+
   try {
+    // First, verify session ownership
+    const sessionCheck = await pool.query(
+      'SELECT user_id FROM chat_sessions WHERE session_id = $1',
+      [sessionId]
+    );
+
+    if (sessionCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // CRITICAL: Verify session belongs to authenticated user
+    if (sessionCheck.rows[0].user_id.toLowerCase() !== authenticatedUser) {
+      return res.status(403).json({
+        error: 'Unauthorized access to session',
+        message: 'Session does not belong to authenticated user'
+      });
+    }
+
     // Generate message ID
     const messageId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
     
@@ -296,29 +379,52 @@ router.post('/save-message', async (req, res) => {
  */
 router.post('/delete', async (req, res) => {
   const { sessionId } = req.body;
-  
+
   if (!sessionId) {
-    return res.status(400).json({ 
-      error: 'Missing required field: sessionId' 
+    return res.status(400).json({
+      error: 'Missing required field: sessionId'
     });
   }
-  
+
+  // CRITICAL: Verify session belongs to authenticated user
+  const authenticatedUser = req.jwtPayload.sub.toLowerCase();
+
+  // CRITICAL: Enforce single-user
+  if (authenticatedUser !== AUTHORIZED_USER) {
+    return res.status(403).json({
+      error: 'Unauthorized user',
+      message: `Only ${AUTHORIZED_USER} is authorized`
+    });
+  }
+
   try {
+    // First, verify session ownership
+    const sessionCheck = await pool.query(
+      'SELECT user_id FROM chat_sessions WHERE session_id = $1',
+      [sessionId]
+    );
+
+    if (sessionCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // CRITICAL: Verify session belongs to authenticated user
+    if (sessionCheck.rows[0].user_id.toLowerCase() !== authenticatedUser) {
+      return res.status(403).json({
+        error: 'Unauthorized access to session',
+        message: 'Session does not belong to authenticated user'
+      });
+    }
+
     // Delete session (messages will be cascade deleted)
     const query = `
       DELETE FROM chat_sessions
       WHERE session_id = $1
       RETURNING session_id
     `;
-    
+
     const result = await pool.query(query, [sessionId]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ 
-        error: 'Session not found' 
-      });
-    }
-    
+
     res.json({
       success: true,
       message: 'Session deleted successfully'

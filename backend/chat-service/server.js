@@ -19,6 +19,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
 const sessionsRouter = require('./routes/sessions-api');
+const jwtMiddleware = require('./middleware/jwt-verify');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -40,12 +41,12 @@ app.use(helmet({
 }));
 
 // ============================================================================
-// RATE LIMITING
+// RATE LIMITING (TIGHTENED)
 // ============================================================================
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // Limit each IP to 200 requests per 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // Configurable, default 100
   message: {
     error: 'Too many requests from this IP, please try again later.',
     retryAfter: '15 minutes'
@@ -57,45 +58,35 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // ============================================================================
-// CORS CONFIGURATION
+// CORS CONFIGURATION (TIGHTENED)
 // ============================================================================
+
+// CRITICAL: Use environment variable for allowed origins (no wildcards in production)
+const allowedOrigins = (process.env.ALLOWED_ORIGINS ||
+  'https://www.sidekickportal.com,https://sidekickportal.com,http://localhost:3000,http://localhost:3005'
+).split(',').map(origin => origin.trim());
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin) return callback(null, true);
+    // CRITICAL: Only allow no-origin in development
+    if (!origin && process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
 
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:3005',
-      'https://www.sidekickportal.com',
-      'https://sidekickportal.com',
-      /^https:\/\/.*\.vercel\.app$/,
-      /^https:\/\/.*\.trycloudflare\.com$/,
-      /^https:\/\/.*\.ngrok\.io$/,
-      /^https:\/\/.*\.sidekickportal\.com$/
-    ];
-
-    const isAllowed = allowedOrigins.some(pattern => {
-      if (typeof pattern === 'string') {
-        return origin === pattern;
-      } else {
-        return pattern.test(origin);
-      }
-    });
-
-    if (isAllowed) {
+    // CRITICAL: Strict origin checking - no wildcards
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.warn(`CORS blocked origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      console.warn(`[CORS] Blocked origin: ${origin}`);
+      callback(new Error('CORS Error: Origin not allowed'));
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-request-id'],
   exposedHeaders: ['Content-Length', 'X-Request-Id'],
-  maxAge: 86400 // 24 hours
+  maxAge: 86400, // 24 hours
+  optionsSuccessStatus: 200
 };
 
 app.use(cors(corsOptions));
@@ -142,10 +133,11 @@ app.get('/', (req, res) => {
 });
 
 // ============================================================================
-// API ROUTES
+// API ROUTES (JWT PROTECTED)
 // ============================================================================
 
-app.use('/api/sessions', sessionsRouter);
+// CRITICAL: Apply JWT verification middleware to all session routes
+app.use('/api/sessions', jwtMiddleware, sessionsRouter);
 
 // ============================================================================
 // ERROR HANDLING
