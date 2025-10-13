@@ -6,6 +6,7 @@
  */
 
 import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 import { buildOrionJWT } from '@/lib/auth-token';
 import { resolveStableUserId } from '@/lib/session/identity';
 
@@ -14,7 +15,7 @@ const BACKEND_URL = process.env.CHAT_SERVICE_URL || 'https://orion-chat.sidekick
 export async function GET(req: Request) {
   try {
     // 1. Verify session
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
         status: 401,

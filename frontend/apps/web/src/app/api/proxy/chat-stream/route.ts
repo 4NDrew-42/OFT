@@ -1,4 +1,5 @@
 import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 import { buildOrionJWT } from "@/lib/auth-token";
 import { resolveStableUserId } from '@/lib/session/identity';
 
@@ -6,7 +7,7 @@ export const runtime = "nodejs";
 
 export async function GET(req: Request) {
   // 1. CRITICAL: Verify session first
-  const session = await getServerSession();
+  const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
     return new Response('Unauthorized', { status: 401 });
   }
