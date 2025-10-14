@@ -1,8 +1,10 @@
 /**
  * NextAuth Configuration
- * 
+ *
  * Shared authentication configuration for NextAuth.js
  * Used by both the auth route handler and session API proxies.
+ *
+ * Last verified: 2025-10-14 - JWT secret synchronized with backend
  */
 
 import { NextAuthOptions } from "next-auth";
