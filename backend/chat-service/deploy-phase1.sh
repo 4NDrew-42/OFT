@@ -63,7 +63,15 @@ ssh "$TARGET_USER@$TARGET_HOST" "mkdir -p $TARGET_DIR"
 rsync -avz --delete \
     --exclude 'node_modules/.cache' \
     --exclude '.git' \
+    --exclude '.env' \
     "$TEMP_DIR/" "$TARGET_USER@$TARGET_HOST:$TARGET_DIR/"
+
+# Copy .env file separately (preserve existing if present)
+if [ -f "$SOURCE_DIR/.env" ]; then
+  scp "$SOURCE_DIR/.env" "$TARGET_USER@$TARGET_HOST:$TARGET_DIR/.env"
+  echo -e "${GREEN}✓${NC} Environment file copied"
+fi
+
 echo -e "${GREEN}✓${NC} Files copied"
 echo ""
 
