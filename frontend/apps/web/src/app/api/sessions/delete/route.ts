@@ -50,7 +50,6 @@ export async function POST(req: Request) {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
-        'Origin': 'https://www.sidekickportal.com',
         'X-Request-Id': crypto.randomUUID(),
       },
       body: JSON.stringify(sanitizedBody),

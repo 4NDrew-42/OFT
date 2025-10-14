@@ -45,7 +45,6 @@ export async function GET(req: Request) {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Origin': 'https://www.sidekickportal.com',
         'X-Request-Id': crypto.randomUUID(),
       },
     });

@@ -71,8 +71,9 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS ||
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // CRITICAL: Only allow no-origin in development
-    if (!origin && process.env.NODE_ENV !== 'production') {
+    // CRITICAL: Allow no-origin for server-to-server requests (Next.js API routes)
+    // These requests come from Vercel's servers, not browsers, so they have no Origin header
+    if (!origin) {
       return callback(null, true);
     }
 
