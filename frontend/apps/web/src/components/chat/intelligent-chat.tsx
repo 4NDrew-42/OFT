@@ -7,11 +7,11 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Brain, Database, Cpu, Zap, Clock, Sparkles, History, Trash2, Copy, Check, ChevronDown, Plus, ShieldAlert } from 'lucide-react';
+import { Send, Brain, Database, Cpu, Zap, Clock, Sparkles, History, Trash2, Copy, Check, ChevronDown, Plus, ShieldAlert, LogOut } from 'lucide-react';
 import { GlassPanel, GlassButton, GlassInput, GlassCard, StatusIndicator, NebulaBackground } from '@/components/ui/glass-components';
 import { cn } from '@/lib/utils';
 import { useEnhancedChatStream } from '@/hooks/useEnhancedChatStream';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { getUserSessions, getSessionMessages, saveMessage, createSession, setCurrentSessionId, getCurrentSessionId, clearCurrentSession, deleteSession, type ChatSession as SessionType } from '@/lib/session/client';
 import { parseTemporalQuery, extractTemporalContext } from '@/lib/temporal/parser';
 import { isAuthorizedUser, getAuthorizedUserEmail } from '@/lib/session/identity';
@@ -65,6 +65,7 @@ export const IntelligentChat: React.FC = () => {
   const [systemStatus, setSystemStatus] = useState<'connecting' | 'online' | 'error'>('connecting');
   const [showSessionHistory, setShowSessionHistory] = useState(false);
   const [sessionHistory, setSessionHistory] = useState<SessionType[]>([]);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Use the real enhanced chat stream hook
   const {
@@ -460,6 +461,21 @@ export const IntelligentChat: React.FC = () => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      // Clear local session state
+      clearCurrentSession();
+      setMessages([]);
+      setSessionHistory([]);
+      // Sign out with NextAuth and redirect to home
+      await signOut({ callbackUrl: '/' });
+    } catch (error) {
+      console.error('Logout error:', error);
+      setIsLoggingOut(false);
+    }
+  };
+
   return (
     <NebulaBackground variant="chat" className="p-4">
       <div className="max-w-4xl mx-auto h-screen flex flex-col">
@@ -564,6 +580,20 @@ export const IntelligentChat: React.FC = () => {
                 title="Clear chat"
               >
                 <Trash2 className="w-4 h-4" />
+              </GlassButton>
+
+              {/* Logout Button */}
+              <GlassButton
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                title="Sign out"
+                className="px-2 sm:px-3 py-1 text-xs sm:text-sm flex items-center gap-1"
+                aria-label="Sign out"
+              >
+                <LogOut className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">{isLoggingOut ? 'Signing out...' : 'Sign Out'}</span>
               </GlassButton>
             </div>
           </div>
