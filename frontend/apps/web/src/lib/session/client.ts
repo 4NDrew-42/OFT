@@ -61,6 +61,7 @@ export async function createSession(firstMessage?: string): Promise<ChatSession>
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ firstMessage: firstMessage || '' }),
+      credentials: 'same-origin', // CRITICAL: Include cookies for authentication
     });
 
     if (!response.ok) {
@@ -119,7 +120,9 @@ export async function getUserSessions(
       params.set('sortOrder', options.sortOrder);
     }
     
-    const response = await fetch(`${INTERNAL_API_BASE}/list?${params.toString()}`);
+    const response = await fetch(`${INTERNAL_API_BASE}/list?${params.toString()}`, {
+      credentials: 'same-origin', // CRITICAL: Include cookies for authentication
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to get sessions: ${response.statusText}`);
@@ -140,7 +143,9 @@ export async function getUserSessions(
  */
 export async function getSessionMessages(sessionId: string): Promise<ChatMessage[]> {
   try {
-    const response = await fetch(`${INTERNAL_API_BASE}/messages?sessionId=${encodeURIComponent(sessionId)}`);
+    const response = await fetch(`${INTERNAL_API_BASE}/messages?sessionId=${encodeURIComponent(sessionId)}`, {
+      credentials: 'same-origin', // CRITICAL: Include cookies for authentication
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to get messages: ${response.statusText}`);
@@ -168,6 +173,7 @@ export async function saveMessage(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId, role, content, metadata }),
+      credentials: 'same-origin', // CRITICAL: Include cookies for authentication
     });
 
     if (!response.ok) {
@@ -190,6 +196,7 @@ export async function deleteSession(sessionId: string): Promise<void> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionId }),
+      credentials: 'same-origin', // CRITICAL: Include cookies for authentication
     });
 
     if (!response.ok) {
