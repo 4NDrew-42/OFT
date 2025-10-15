@@ -5,6 +5,60 @@ import { resolveStableUserId } from '@/lib/session/identity';
 
 export const runtime = "nodejs";
 
+// Session cache to persist sessionId across requests
+const sessionCache = new Map<string, { sessionId: string; createdAt: number }>();
+const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+/**
+ * Get or create a persistent session for the user
+ */
+async function getOrCreateSession(userId: string, token: string): Promise<string> {
+  // Check cache
+  const cached = sessionCache.get(userId);
+  if (cached && (Date.now() - cached.createdAt) < SESSION_TTL) {
+    return cached.sessionId;
+  }
+  
+  // Create new session via backend API
+  try {
+    const response = await fetch('https://orion-chat.sidekickportal.com/api/sessions/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        userId,
+        firstMessage: ''
+      })
+    });
+    
+    if (response.ok) {
+      const session = await response.json();
+      const sessionData = {
+        sessionId: session.sessionId,
+        createdAt: Date.now()
+      };
+      sessionCache.set(userId, sessionData);
+      console.log(`✅ Created new session for ${userId}: ${session.sessionId}`);
+      return session.sessionId;
+    } else {
+      console.warn(`⚠️ Session creation failed (${response.status}), using fallback`);
+    }
+  } catch (error) {
+    console.error('Session creation error:', error);
+  }
+  
+  // Fallback: generate sessionId (backend will auto-create if needed)
+  const fallbackSessionId = `web_${userId}_${Date.now()}`;
+  const sessionData = {
+    sessionId: fallbackSessionId,
+    createdAt: Date.now()
+  };
+  sessionCache.set(userId, sessionData);
+  return fallbackSessionId;
+}
+
 export async function GET(req: Request) {
   // 1. CRITICAL: Verify session first
   const session = await getServerSession(authOptions);
@@ -35,14 +89,17 @@ export async function GET(req: Request) {
 
   const reqId = req.headers.get("x-request-id") || (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
 
+  // 5. Get or create persistent session
+  const sessionId = await getOrCreateSession(userId, token);
+
   // Pure proxy to backend - let backend make ALL decisions
   const SSE_STREAM_URL = 'https://orion-chat.sidekickportal.com/api/chat-stream';
 
-  // Pass only essential parameters with authenticated userId
+  // Pass only essential parameters with authenticated userId and persistent sessionId
   const params = new URLSearchParams({
     message: q,
     userId: userId, // Use authenticated userId, not query param
-    sessionId: `web_${userId}_${Date.now()}`,
+    sessionId: sessionId, // Use persistent sessionId
   });
 
   // Pass conversation history if provided (backend decides how to use it)
@@ -104,3 +161,4 @@ export async function GET(req: Request) {
     },
   });
 }
+
