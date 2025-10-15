@@ -16,8 +16,26 @@ export async function GET(req: Request) {
   try {
     // 1. Verify session
     const session = await getServerSession(authOptions);
+
+    // DEBUG: Log session details
+    console.log('[sessions/list] Session check:', {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      hasEmail: !!session?.user?.email,
+      email: session?.user?.email,
+      timestamp: new Date().toISOString()
+    });
+
     if (!session?.user?.email) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+      console.error('[sessions/list] 401 - No session or email');
+      return new Response(JSON.stringify({
+        error: 'Unauthorized',
+        debug: {
+          hasSession: !!session,
+          hasUser: !!session?.user,
+          hasEmail: !!session?.user?.email
+        }
+      }), {
         status: 401,
         headers: { 'Content-Type': 'application/json' }
       });
