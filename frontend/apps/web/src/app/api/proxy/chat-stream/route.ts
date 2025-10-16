@@ -78,9 +78,12 @@ export async function GET(req: Request) {
             try {
               const evt = JSON.parse(dataLines);
               if (evt.type === 'content' && typeof evt.text === 'string') {
-                // Emit plain SSE with only text (no JSON wrapper)
-                const out = `data: ${evt.text}\n\n`;
-                controller.enqueue(encoder.encode(out));
+                // Emit plain SSE with only text (no JSON wrapper), respecting SSE multi-line rules
+                const lines = String(evt.text).split('\\n');
+                for (const line of lines) {
+                  controller.enqueue(encoder.encode(`data: ${line}\\n`));
+                }
+                controller.enqueue(encoder.encode(`\\n`));
               } else if (evt.type === 'done') {
                 // Optionally signal done
                 const out = `data: [DONE]\n\n`;
@@ -89,9 +92,12 @@ export async function GET(req: Request) {
                 // Drop status and other types
               }
             } catch {
-              // Not JSON, forward as-is
-              const out = `data: ${dataLines}\n\n`;
-              controller.enqueue(encoder.encode(out));
+              // Not JSON, forward as-is (split into SSE data lines)
+              const lines2 = String(dataLines).split('\n');
+              for (const line2 of lines2) {
+                controller.enqueue(encoder.encode(`data: ${line2}\n`));
+              }
+              controller.enqueue(encoder.encode(`\n`));
             }
           }
         }
