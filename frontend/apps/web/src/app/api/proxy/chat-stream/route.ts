@@ -78,12 +78,12 @@ export async function GET(req: Request) {
             try {
               const evt = JSON.parse(dataLines);
               if (evt.type === 'content' && typeof evt.text === 'string') {
-                // Emit plain SSE with only text (no JSON wrapper), respecting SSE multi-line rules
-                const lines = String(evt.text).split('\\n');
-                for (const line of lines) {
-                  controller.enqueue(encoder.encode(`data: ${line}\\n`));
+                const lines = String(evt.text).split('\n');
+                for (let i = 0; i < lines.length; i += 4) {
+                  const slice = lines.slice(i, i + 4);
+                  const payload = slice.map(l => `data: ${l}`).join('\n') + '\n\n';
+                  controller.enqueue(encoder.encode(payload));
                 }
-                controller.enqueue(encoder.encode(`\\n`));
               } else if (evt.type === 'done') {
                 // Optionally signal done
                 const out = `data: [DONE]\n\n`;
