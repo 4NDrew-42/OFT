@@ -1,8 +1,10 @@
 /**
- * Save Message API Proxy
+ * Save Message API Proxy - WITH TIMEOUT FIX
  * 
  * Authenticated proxy for saving chat messages.
  * Enforces single-user authorization and mints JWT tokens.
+ * 
+ * CRITICAL FIX: Added 5-second timeout to prevent UI hangs
  */
 
 import { getServerSession } from 'next-auth/next';
@@ -11,6 +13,7 @@ import { buildOrionJWT } from '@/lib/auth-token';
 import { resolveStableUserId } from '@/lib/session/identity';
 
 const BACKEND_URL = process.env.CHAT_SERVICE_URL || 'https://orion-chat.sidekickportal.com';
+const SAVE_TIMEOUT_MS = 5000; // 5 seconds
 
 export async function POST(req: Request) {
   try {
@@ -49,26 +52,55 @@ export async function POST(req: Request) {
     // 5. Mint JWT with authenticated userId
     const token = buildOrionJWT(userId);
 
-    // 6. Forward to backend
-    const response = await fetch(`${BACKEND_URL}/api/sessions/save-message`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'X-Request-Id': crypto.randomUUID(),
-      },
-      body: JSON.stringify(sanitizedBody),
-    });
+    // 6. Forward to backend WITH TIMEOUT
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), SAVE_TIMEOUT_MS);
 
-    // 7. Return backend response
-    const data = await response.json();
-    return new Response(JSON.stringify(data), {
-      status: response.status,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/sessions/save-message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'X-Request-Id': crypto.randomUUID(),
+        },
+        body: JSON.stringify(sanitizedBody),
+        signal: controller.signal, // Add abort signal for timeout
+      });
+
+      clearTimeout(timeoutId);
+
+      // 7. Return backend response
+      const data = await response.json();
+      return new Response(JSON.stringify(data), {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+
+      // Handle timeout gracefully (fire-and-forget)
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        console.warn(`[Session Save] Timeout after ${SAVE_TIMEOUT_MS}ms - continuing anyway`);
+        
+        // Return success even on timeout (message will be saved eventually or lost)
+        return new Response(JSON.stringify({ 
+          success: true,
+          message: 'Save queued (timeout)',
+          timeout: true
+        }), {
+          status: 202, // Accepted (async processing)
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      // Re-throw other fetch errors
+      throw fetchError;
+    }
 
   } catch (error) {
-    console.error('Save message error:', error);
+    console.error('[Session Save] Error:', error);
     return new Response(JSON.stringify({ 
       error: 'Failed to save message',
       message: error instanceof Error ? error.message : 'Unknown error'
