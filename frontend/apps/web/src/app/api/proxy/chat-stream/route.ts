@@ -92,28 +92,37 @@ export async function GET(req: Request) {
   // 5. Get or create persistent session
   const sessionId = await getOrCreateSession(userId, token);
 
-  // Pure proxy to backend - let backend make ALL decisions
-  const SSE_STREAM_URL = 'https://orion-chat.sidekickportal.com/api/chat-stream';
+  // UPDATED: Use V2 endpoint with POST method
+  const SSE_STREAM_URL = 'https://orion-chat.sidekickportal.com/api/chat-stream-v2';
 
-  // Pass only essential parameters with authenticated userId and persistent sessionId
-  const params = new URLSearchParams({
-    message: q,
-    userId: userId, // Use authenticated userId, not query param
-    sessionId: sessionId, // Use persistent sessionId
-  });
-
-  // Pass conversation history if provided (backend decides how to use it)
+  // Parse conversation history (truncate to last 10 messages to avoid URL bloat)
+  let conversationHistory: any[] = [];
   if (historyParam) {
-    params.append('conversationHistory', historyParam);
+    try {
+      const fullHistory = JSON.parse(historyParam);
+      // CRITICAL: Only send last 10 messages, not entire session
+      conversationHistory = fullHistory.slice(-10);
+      console.log(`📝 Conversation history: ${fullHistory.length} total, sending last ${conversationHistory.length}`);
+    } catch (e) {
+      console.error('Failed to parse conversation history:', e);
+    }
   }
 
-  const upstream = await fetch(`${SSE_STREAM_URL}?${params.toString()}`, {
-    method: "GET",
+  // Use POST instead of GET to avoid URL length limits
+  const upstream = await fetch(SSE_STREAM_URL, {
+    method: "POST",  // CHANGED: POST instead of GET
     headers: {
       Authorization: `Bearer ${token}`,
       "X-Request-Id": reqId,
       "Accept": "text/event-stream",
+      "Content-Type": "application/json",  // ADDED: JSON content type
     },
+    body: JSON.stringify({  // CHANGED: Body instead of query params
+      message: q,
+      userId: userId,
+      sessionId: sessionId,
+      conversationHistory: conversationHistory  // In body, not URL
+    })
   });
 
   if (!upstream.ok) {
