@@ -5,139 +5,56 @@ import { resolveStableUserId } from '@/lib/session/identity';
 
 export const runtime = "nodejs";
 
-// Session cache to persist sessionId across requests
-const sessionCache = new Map<string, { sessionId: string; createdAt: number }>();
-const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 hours
-
-/**
- * Get or create a persistent session for the user
- */
-async function getOrCreateSession(userId: string, token: string): Promise<string> {
-  // Check cache
-  const cached = sessionCache.get(userId);
-  if (cached && (Date.now() - cached.createdAt) < SESSION_TTL) {
-    return cached.sessionId;
-  }
-  
-  // Create new session via backend API
-  try {
-    const response = await fetch('https://orion-chat.sidekickportal.com/api/sessions/create', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        userId,
-        firstMessage: ''
-      })
-    });
-    
-    if (response.ok) {
-      const session = await response.json();
-      const sessionData = {
-        sessionId: session.sessionId,
-        createdAt: Date.now()
-      };
-      sessionCache.set(userId, sessionData);
-      console.log(`✅ Created new session for ${userId}: ${session.sessionId}`);
-      return session.sessionId;
-    } else {
-      console.warn(`⚠️ Session creation failed (${response.status}), using fallback`);
-    }
-  } catch (error) {
-    console.error('Session creation error:', error);
-  }
-  
-  // Fallback: generate sessionId (backend will auto-create if needed)
-  const fallbackSessionId = `web_${userId}_${Date.now()}`;
-  const sessionData = {
-    sessionId: fallbackSessionId,
-    createdAt: Date.now()
-  };
-  sessionCache.set(userId, sessionData);
-  return fallbackSessionId;
-}
-
 export async function GET(req: Request) {
-  // 1. CRITICAL: Verify session first
+  // 1) Auth
   const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
-    return new Response('Unauthorized', { status: 401 });
-  }
-
-  // 2. CRITICAL: Enforce single-user (throws if not authorized)
+  if (!session?.user?.email) return new Response('Unauthorized', { status: 401 });
   const userId = resolveStableUserId(session.user.email);
 
-  // 3. Parse query parameters
+  // 2) Parse query
   const url = new URL(req.url);
   const q = url.searchParams.get("q");
   const historyParam = url.searchParams.get("history");
+  if (!q) return new Response("missing query parameter: q", { status: 400 });
 
-  // CRITICAL: Don't accept 'sub' from query params - use authenticated userId
-  if (!q) {
-    return new Response("missing query parameter: q", { status: 400 });
-  }
-
-  // 4. Mint JWT with authenticated userId
+  // 3) Token + sessionId
   let token: string;
-  try {
-    token = buildOrionJWT(userId);
-  } catch (e) {
-    return new Response("server_not_configured", { status: 500 });
-  }
-
+  try { token = buildOrionJWT(userId); } catch { return new Response("server_not_configured", { status: 500 }); }
   const reqId = req.headers.get("x-request-id") || (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
 
-  // 5. Get or create persistent session
-  const sessionId = await getOrCreateSession(userId, token);
-
-  // UPDATED: Use V2 endpoint with POST method
-  const SSE_STREAM_URL = 'https://orion-chat.sidekickportal.com/api/chat-stream-v2';
-
-  // Parse conversation history (truncate to last 10 messages to avoid URL bloat)
+  // 4) Prepare POST payload
   let conversationHistory: any[] = [];
   if (historyParam) {
-    try {
-      const fullHistory = JSON.parse(historyParam);
-      // CRITICAL: Only send last 10 messages, not entire session
-      conversationHistory = fullHistory.slice(-10);
-      console.log(`📝 Conversation history: ${fullHistory.length} total, sending last ${conversationHistory.length}`);
-    } catch (e) {
-      console.error('Failed to parse conversation history:', e);
-    }
+    try { conversationHistory = (JSON.parse(historyParam) as any[]).slice(-10); } catch {}
   }
 
-  // Use POST instead of GET to avoid URL length limits
-  const upstream = await fetch(SSE_STREAM_URL, {
-    method: "POST",  // CHANGED: POST instead of GET
+  const upstream = await fetch('https://orion-chat.sidekickportal.com/api/chat-stream-v2', {
+    method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       "X-Request-Id": reqId,
       "Accept": "text/event-stream",
-      "Content-Type": "application/json",  // ADDED: JSON content type
+      "Content-Type": "application/json",
     },
-    body: JSON.stringify({  // CHANGED: Body instead of query params
+    body: JSON.stringify({
       message: q,
-      userId: userId,
-      sessionId: sessionId,
-      conversationHistory: conversationHistory  // In body, not URL
+      userId,
+      sessionId: `web_${userId}`,
+      conversationHistory,
     })
   });
 
-  if (!upstream.ok) {
-    const text = await upstream.text();
-    return new Response(text || "stream_error", { status: upstream.status });
+  if (!upstream.ok || !upstream.body) {
+    const text = await upstream.text().catch(() => '');
+    return new Response(text || "stream_error", { status: upstream.status || 500 });
   }
 
-  // Transform the SSE stream to fix backend's escaped newlines
-  const reader = upstream.body?.getReader();
-  if (!reader) {
-    return new Response("no_stream_body", { status: 500 });
-  }
-
-  const decoder = new TextDecoder();
+  // 5) SSE transformer: backend emits JSON events; frontend expects plain text lines
+  // Convert: {type:"status"} -> drop; {type:"content", text:"..."} -> emit as bare data lines
+  const reader = upstream.body.getReader();
   const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+  let buffer = '';
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -145,19 +62,45 @@ export async function GET(req: Request) {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
+          buffer += decoder.decode(value, { stream: true });
 
-          // Decode chunk and replace literal \n\n with actual newlines
-          let chunk = decoder.decode(value, { stream: true });
-          chunk = chunk.replace(/\\n\\n/g, '\n\n');
+          // split on double newline boundaries separating SSE events
+          let idx;
+          while ((idx = buffer.indexOf('\n\n')) !== -1) {
+            const eventChunk = buffer.slice(0, idx);
+            buffer = buffer.slice(idx + 2);
 
-          controller.enqueue(encoder.encode(chunk));
+            // Find data: lines and merge
+            const dataLines = eventChunk.split('\n').filter(l => l.startsWith('data: ')).map(l => l.slice(6)).join('');
+            if (!dataLines) continue;
+
+            // Try parse JSON event from backend
+            try {
+              const evt = JSON.parse(dataLines);
+              if (evt.type === 'content' && typeof evt.text === 'string') {
+                // Emit plain SSE with only text (no JSON wrapper)
+                const out = `data: ${evt.text}\n\n`;
+                controller.enqueue(encoder.encode(out));
+              } else if (evt.type === 'done') {
+                // Optionally signal done
+                const out = `data: [DONE]\n\n`;
+                controller.enqueue(encoder.encode(out));
+              } else {
+                // Drop status and other types
+              }
+            } catch {
+              // Not JSON, forward as-is
+              const out = `data: ${dataLines}\n\n`;
+              controller.enqueue(encoder.encode(out));
+            }
+          }
         }
+      } catch (err) {
+        console.error('Proxy SSE error:', err);
+      } finally {
         controller.close();
-      } catch (error) {
-        console.error('Stream error:', error);
-        controller.error(error);
       }
-    },
+    }
   });
 
   return new Response(stream, {
@@ -167,7 +110,7 @@ export async function GET(req: Request) {
       "Cache-Control": "no-cache, no-store, must-revalidate",
       "Connection": "keep-alive",
       "X-Accel-Buffering": "no",
-    },
+    }
   });
 }
 
