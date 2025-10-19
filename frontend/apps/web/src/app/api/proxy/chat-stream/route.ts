@@ -6,13 +6,21 @@ import { resolveStableUserId } from '@/lib/session/identity';
 export const runtime = "nodejs";
 
 export async function GET(req: Request) {
-  // 1) Auth
+  // 1) Auth - try session first, then fall back to sub parameter
   const session = await getServerSession(authOptions);
-  if (!session?.user?.email) return new Response('Unauthorized', { status: 401 });
-  const userId = resolveStableUserId(session.user.email);
+  const url = new URL(req.url);
+  const subParam = url.searchParams.get("sub");
+
+  let userId: string;
+  if (session?.user?.email) {
+    userId = resolveStableUserId(session.user.email);
+  } else if (subParam) {
+    userId = resolveStableUserId(subParam);
+  } else {
+    return new Response('Unauthorized', { status: 401 });
+  }
 
   // 2) Parse query
-  const url = new URL(req.url);
   const q = url.searchParams.get("q");
   const historyParam = url.searchParams.get("history");
   if (!q) return new Response("missing query parameter: q", { status: 400 });
@@ -81,19 +89,15 @@ export async function GET(req: Request) {
             // Try parse JSON event from backend
             try {
               const evt = JSON.parse(dataLines);
-              if (evt.type === 'content' && typeof evt.text === 'string') {
-                const lines = String(evt.text).split('\n');
-                for (let i = 0; i < lines.length; i += 4) {
-                  const slice = lines.slice(i, i + 4);
-                  const payload = slice.map(l => `data: ${l}`).join('\n') + '\n\n';
-                  controller.enqueue(encoder.encode(payload));
-                }
-              } else if (evt.type === 'done') {
-                // Optionally signal done
+              if (evt.type === 'done') {
+                // Signal stream complete
                 const out = `data: [DONE]\n\n`;
                 controller.enqueue(encoder.encode(out));
               } else {
-                // Drop status and other types
+                // Pass through all other JSON events as-is (status, content, error, etc.)
+                // Frontend hook will handle filtering
+                const out = `data: ${dataLines}\n\n`;
+                controller.enqueue(encoder.encode(out));
               }
             } catch {
               // Not JSON, forward as-is (split into SSE data lines)

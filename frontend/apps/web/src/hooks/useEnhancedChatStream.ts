@@ -64,7 +64,32 @@ export function useEnhancedChatStream(sub: string, options: EnhancedChatOptions 
         return;
       }
 
-      // Filter out ALL status/loading messages - don't add them to buffer
+      // Try to parse as JSON first (backend sends JSON events)
+      try {
+        const parsed = JSON.parse(e.data);
+
+        // Handle different event types from backend
+        if (parsed.type === 'status' || parsed.type === 'loading') {
+          // Ignore status messages for cleaner UX
+          return;
+        } else if (parsed.type === 'error') {
+          setError(parsed.message || 'Unknown error');
+          setBuffer((prev) => prev + `❌ ${parsed.message}\n`);
+          return;
+        } else if (parsed.type === 'content' && parsed.text) {
+          // Content event - add to buffer
+          setBuffer((prev) => prev + parsed.text);
+          return;
+        } else if (parsed.type === 'done') {
+          // Stream complete
+          stop();
+          return;
+        }
+      } catch {
+        // Not JSON, treat as plain text
+      }
+
+      // Filter out emoji-prefixed status messages (plain text format)
       const statusEmojis = ["🔍", "📚", "🤖", "💭", "🧠", "✓", "⚡", "📊"];
       if (statusEmojis.some(emoji => e.data.startsWith(emoji))) {
         // These are status messages from backend, ignore for cleaner UX
