@@ -59,6 +59,10 @@ export async function GET(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        // FIREFOX FIX: Send immediate connection acknowledgment
+        // This prevents Firefox from timing out waiting for first data
+        controller.enqueue(encoder.encode(': connected\n\n'));
+        
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -119,4 +123,3 @@ export async function GET(req: Request) {
     }
   });
 }
-
