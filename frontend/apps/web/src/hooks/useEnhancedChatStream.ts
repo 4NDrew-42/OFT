@@ -73,8 +73,16 @@ export function useEnhancedChatStream(sub: string, options: EnhancedChatOptions 
           // Ignore status messages for cleaner UX
           return;
         } else if (parsed.type === 'error') {
-          setError(parsed.message || 'Unknown error');
-          setBuffer((prev) => prev + `❌ ${parsed.message}\n`);
+          // Handle backend errors gracefully
+          const errorMsg = parsed.message || 'Unknown error';
+          setError(errorMsg);
+
+          // Provide helpful fallback message for specific errors
+          if (errorMsg.includes('Could not detect node name')) {
+            setBuffer((prev) => prev + `⚠️ Backend is processing your query but encountered a routing issue. Please try again or rephrase your question.\n`);
+          } else {
+            setBuffer((prev) => prev + `❌ ${errorMsg}\n`);
+          }
           return;
         } else if (parsed.type === 'content' && parsed.text) {
           // Content event - add to buffer
