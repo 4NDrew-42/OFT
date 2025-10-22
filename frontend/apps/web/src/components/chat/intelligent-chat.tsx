@@ -16,7 +16,7 @@ import { getUserSessions, getSessionMessages, saveMessage, createSession, setCur
 import { parseTemporalQuery, extractTemporalContext } from '@/lib/temporal/parser';
 import { isAuthorizedUser, getAuthorizedUserEmail } from '@/lib/session/identity';
 import { createNote, createEvent, createExpense } from '@/lib/orionClient';
-import { buildOrionJWT } from '@/lib/auth-token';
+// NOTE: client-side JWT minting removed; use server API instead
 
 // Types
 interface ChatMessage {
@@ -129,7 +129,18 @@ export const IntelligentChat: React.FC = () => {
   // Execute pending action (create note/event/expense)
   const executeAction = useCallback(async (actionType: string, data: any) => {
     try {
-      const token = buildOrionJWT(userEmail);
+      // Mint JWT on the server (secure) and use it for Fabric API calls
+      const resp = await fetch('/api/auth/mint-jwt', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!resp.ok) {
+        const errText = await resp.text();
+        console.error('[mint-jwt] failed:', resp.status, errText);
+        throw new Error('jwt_mint_failed');
+      }
+      const { token } = await resp.json();
 
       if (actionType === 'note') {
         await createNote(data, token);
