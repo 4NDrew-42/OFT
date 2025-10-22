@@ -23,7 +23,14 @@ export function buildOrionJWT(sub: string, expiresSeconds = 300): string {
   const iss = process.env.ORION_SHARED_JWT_ISS || "https://www.sidekickportal.com";
   const aud = process.env.ORION_SHARED_JWT_AUD || "orion-core";
   const secret = process.env.ORION_SHARED_JWT_SECRET;
-  if (!secret) throw new Error("server_not_configured");
+
+  // Debug logging for environment variable availability
+  if (!secret) {
+    console.error('[JWT] ORION_SHARED_JWT_SECRET is undefined');
+    console.error('[JWT] Available env vars:', Object.keys(process.env).filter(k => k.includes('ORION')));
+    throw new Error("server_not_configured");
+  }
+
   const now = Math.floor(Date.now() / 1000);
   const exp = now + expiresSeconds;
   return signHS256({ iss, aud, sub, iat: now, exp }, secret);
