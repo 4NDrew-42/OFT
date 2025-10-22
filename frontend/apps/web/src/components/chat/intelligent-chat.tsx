@@ -15,6 +15,8 @@ import { useSession, signOut } from 'next-auth/react';
 import { getUserSessions, getSessionMessages, saveMessage, createSession, setCurrentSessionId, getCurrentSessionId, clearCurrentSession, deleteSession, type ChatSession as SessionType } from '@/lib/session/client';
 import { parseTemporalQuery, extractTemporalContext } from '@/lib/temporal/parser';
 import { isAuthorizedUser, getAuthorizedUserEmail } from '@/lib/session/identity';
+import { createNote, createEvent, createExpense } from '@/lib/orionClient';
+import { buildOrionJWT } from '@/lib/auth-token';
 
 // Types
 interface ChatMessage {
@@ -72,9 +74,11 @@ export const IntelligentChat: React.FC = () => {
     buffer,
     isStreaming,
     error: streamError,
+    pendingAction,
     start: startStream,
     stop: stopStream,
     clearBuffer,
+    clearPendingAction,
     switchProvider,
     currentProvider: streamProvider
   } = useEnhancedChatStream(userEmail, { provider: currentProvider });
@@ -122,6 +126,26 @@ export const IntelligentChat: React.FC = () => {
     }
   }, [userEmail]);
 
+  // Execute pending action (create note/event/expense)
+  const executeAction = useCallback(async (actionType: string, data: any) => {
+    try {
+      const token = buildOrionJWT(userEmail);
+
+      if (actionType === 'note') {
+        await createNote(data, token);
+        console.log('✅ Note created successfully:', data.title);
+      } else if (actionType === 'event') {
+        await createEvent(data, token);
+        console.log('✅ Event created successfully:', data.title);
+      } else if (actionType === 'expense') {
+        await createExpense(data, token);
+        console.log('✅ Expense created successfully:', data.description);
+      }
+    } catch (error) {
+      console.error(`❌ Failed to create ${actionType}:`, error);
+    }
+  }, [userEmail]);
+
   // Handle streaming response
   useEffect(() => {
     if (!buffer || isStreaming) return;
@@ -158,8 +182,14 @@ export const IntelligentChat: React.FC = () => {
       });
     }
 
+    // Execute pending action if present
+    if (pendingAction) {
+      executeAction(pendingAction.type, pendingAction.data);
+      clearPendingAction();
+    }
+
     clearBuffer();
-  }, [buffer, isStreaming, streamProvider, userEmail, loadSessionHistory, clearBuffer]);
+  }, [buffer, isStreaming, streamProvider, userEmail, loadSessionHistory, clearBuffer, pendingAction, executeAction, clearPendingAction]);
 
   // Load session history on mount
   useEffect(() => {

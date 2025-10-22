@@ -10,6 +10,11 @@ export interface EnhancedChatOptions {
   conversationHistory?: Array<{ role: string; content: string }>;
 }
 
+export interface PendingAction {
+  type: string;
+  data: any;
+}
+
 export function useEnhancedChatStream(sub: string, options: EnhancedChatOptions = {}) {
   const esRef = useRef<EventSource | null>(null);
   const [buffer, setBuffer] = useState("");
@@ -17,6 +22,7 @@ export function useEnhancedChatStream(sub: string, options: EnhancedChatOptions 
   const [error, setError] = useState<string | null>(null);
   const [ragContext, setRagContext] = useState<string[]>([]);
   const [currentProvider, setCurrentProvider] = useState<ChatProvider>(options.provider || 'deepseek');
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
   function stop() {
     esRef.current?.close();
@@ -50,6 +56,7 @@ export function useEnhancedChatStream(sub: string, options: EnhancedChatOptions 
     setBuffer("");
     setError(null);
     setRagContext([]);
+    setPendingAction(null);
     setIsStreaming(true);
 
     const provider = customOptions?.provider || currentProvider;
@@ -87,6 +94,14 @@ export function useEnhancedChatStream(sub: string, options: EnhancedChatOptions 
         } else if (parsed.type === 'content' && parsed.text) {
           // Content event - add to buffer
           setBuffer((prev) => prev + parsed.text);
+          return;
+        } else if (parsed.type === 'action') {
+          // Action event - store for execution after stream completes
+          setPendingAction({
+            type: parsed.actionType,
+            data: parsed.data
+          });
+          console.log('[Action Event] Received:', parsed.actionType, parsed.data);
           return;
         } else if (parsed.type === 'done') {
           // Stream complete
@@ -137,18 +152,24 @@ export function useEnhancedChatStream(sub: string, options: EnhancedChatOptions 
     setRagContext([]);
   }
 
+  function clearPendingAction() {
+    setPendingAction(null);
+  }
+
   useEffect(() => () => stop(), []);
 
-  return { 
-    buffer, 
-    isStreaming, 
-    error, 
+  return {
+    buffer,
+    isStreaming,
+    error,
     ragContext,
     currentProvider,
-    start, 
-    stop, 
+    pendingAction,
+    start,
+    stop,
     switchProvider,
     clearBuffer,
+    clearPendingAction,
     availableProviders: ['deepseek', 'gemini'] as ChatProvider[]
   } as const;
 }
