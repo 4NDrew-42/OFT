@@ -24,7 +24,14 @@ export async function POST(req: Request) {
     }
 
     // 2. Enforce single-user (throws if not authorized)
-    const userId = resolveStableUserId(session.user.email);
+    let userId: string;
+    try {
+      userId = resolveStableUserId(session.user.email);
+    } catch (e: any) {
+      const authorized = (process.env.NEXT_PUBLIC_AUTHORIZED_USER_EMAIL || 'jamesandrewklein@gmail.com').toLowerCase();
+      console.warn('[sessions/create] 403 - Unauthorized user', { sessionEmail: session.user.email, authorized });
+      return new Response(JSON.stringify({ error: 'Forbidden', reason: 'unauthorized_user', debug: { sessionEmail: session.user.email, authorized } }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+    }
 
     // 3. Parse request body
     const body = await req.json().catch(() => ({}));
@@ -49,7 +56,12 @@ export async function POST(req: Request) {
       body: JSON.stringify(sanitizedBody),
     });
 
-    // 7. Return backend response
+    // 7. Return backend response (with debug on error)
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      console.warn('[sessions/create] Upstream error', { status: response.status, text: text.slice(0, 400) });
+      return new Response(JSON.stringify({ error: 'upstream_error', status: response.status, body: text }), { status: response.status, headers: { 'Content-Type': 'application/json' } });
+    }
     const data = await response.json();
     return new Response(JSON.stringify(data), {
       status: response.status,
