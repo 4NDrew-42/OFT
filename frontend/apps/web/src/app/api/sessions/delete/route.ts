@@ -7,7 +7,7 @@
 
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
-import { buildOrionJWT } from '@/lib/auth-token';
+import { signHS256 } from '@/lib/auth-token';
 import { resolveStableUserId } from '@/lib/session/identity';
 
 const BACKEND_URL = process.env.CHAT_SERVICE_URL || 'https://orion-chat.sidekickportal.com';
@@ -41,8 +41,18 @@ export async function POST(req: Request) {
       sessionId: body.sessionId
     };
 
-    // 5. Mint JWT with authenticated userId
-    const token = buildOrionJWT(userId);
+    // 5. Mint JWT with authenticated userId (use chat-service secret override, trim trailing newlines)
+    const iss = process.env.ORION_SHARED_JWT_ISS || 'https://www.sidekickportal.com';
+    const aud = process.env.ORION_CHAT_JWT_AUD || process.env.ORION_SHARED_JWT_AUD || 'orion-core';
+    let secret = process.env.ORION_CHAT_SERVICE_JWT_SECRET || process.env.ORION_SHARED_JWT_SECRET;
+    if (!secret) {
+      console.error('[sessions/delete] Missing JWT secret');
+      return new Response(JSON.stringify({ error: 'server_not_configured' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }
+    secret = secret.replace(/\n+$/, '');
+    const now = Math.floor(Date.now() / 1000);
+    const exp = now + 300;
+    const token = signHS256({ iss, aud, sub: userId, iat: now, exp }, secret);
 
     // 6. Forward to backend
     const response = await fetch(`${BACKEND_URL}/api/sessions/delete`, {

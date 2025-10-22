@@ -118,8 +118,7 @@ export const IntelligentChat: React.FC = () => {
   const loadSessionHistory = useCallback(async () => {
     if (!userEmail) return;
     try {
-      const userId = getUserId();
-      const sessions = await getUserSessions(userId);
+      const sessions = await getUserSessions({ sortBy: 'updatedAt', sortOrder: 'desc' });
       setSessionHistory(sessions);
     } catch (error) {
       console.error('Failed to load session history:', error);
@@ -240,14 +239,12 @@ export const IntelligentChat: React.FC = () => {
 
   const initializeSession = async () => {
     try {
-      // TODO: Replace with actual API call
-      const mockSession: ChatSession = {
-        sessionId: `session_${Date.now()}`,
-        messageCount: 0,
-        conversationMemory: true,
-        createdAt: new Date().toISOString()
-      };
-      setSession(mockSession);
+      const sessions = await getUserSessions({ limit: 1, sortBy: 'updatedAt', sortOrder: 'desc' });
+      if (sessions.length > 0) {
+        const latest = sessions[0];
+        setCurrentSessionId(latest.sessionId);
+        await loadSessionMessages(latest.sessionId);
+      }
       setSystemStatus('online');
     } catch (error) {
       console.error('Failed to initialize session:', error);
@@ -268,8 +265,7 @@ export const IntelligentChat: React.FC = () => {
     // If temporal query detected with high confidence, fetch relevant sessions
     if (temporal && temporal.confidence >= 0.7) {
       try {
-        const userId = getUserId();
-        const sessions = await getUserSessions(userId, {
+        const sessions = await getUserSessions({
           startDate: temporal.startDate,
           endDate: temporal.endDate,
           limit: 20,
@@ -336,15 +332,22 @@ export const IntelligentChat: React.FC = () => {
         console.error('Failed to save user message:', error);
       }
     } else if (userEmail) {
-      // Create new session with first message
+      // No current session: try to reuse latest server session; only create if none exist
       try {
-        const userId = getUserId();
-        const newSession = await createSession(userId, messageContent);
-        setCurrentSessionId(newSession.sessionId);
-        console.log('Created new session with first message:', newSession.sessionId);
-        await loadSessionHistory();
+        const sessions = await getUserSessions({ limit: 1, sortBy: 'updatedAt', sortOrder: 'desc' });
+        if (sessions.length > 0) {
+          const latest = sessions[0];
+          setCurrentSessionId(latest.sessionId);
+          await saveMessage(latest.sessionId, 'user', messageContent);
+          console.log('Reused latest session:', latest.sessionId);
+        } else {
+          const newSession = await createSession(messageContent);
+          setCurrentSessionId(newSession.sessionId);
+          console.log('Created new session with first message:', newSession.sessionId);
+          await loadSessionHistory();
+        }
       } catch (error) {
-        console.error('Failed to create session:', error);
+        console.error('Failed to initialize session/message:', error);
       }
     }
 
@@ -481,9 +484,8 @@ export const IntelligentChat: React.FC = () => {
     }
     
     clearCurrentSession();
-    const userId = getUserId();
     try {
-      const newSession = await createSession(userId, '');
+      const newSession = await createSession('');
       setCurrentSessionId(newSession.sessionId);
       setMessages([]);
       await loadSessionHistory();
